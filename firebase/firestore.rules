@@ -1,0 +1,101 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /subscribers/{subscriber} {
+      allow create: if request.auth == null; // No auth needed
+      allow read: if false; // Block public reads
+    }
+
+    match /partners/{partner} {
+      allow create: if request.auth == null; // No auth needed
+      allow read: if false; // Block public reads
+    }
+    
+    match /businesses/{businessId} {
+      // Later, only allow creation of a business doc only if user is creating one with their own UID
+      // allow create: if request.auth != null && ...;
+      
+      // Allow reads only to users associated with the business
+      allow read, write, update: if isUserInBusiness(businessId);
+
+      // Disallow deletes unless you implement business deletion logic
+      allow delete: if false;
+
+      match /orders/{orderId} {
+        allow create: if true; // Allow anyone to create orders
+        allow read: if true;
+      }
+    }
+
+    match /users/{userId} {
+      // Allow authenticated users to read users data of their own businesses
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && isSameBusiness(userId) && isAdminOrOwner();
+      allow update: if request.auth != null && isSameBusiness(userId) && canModifyRole(userId) && isNotSelf(userId) && isAdminOrOwner();
+      allow delete: if request.auth != null && isSameBusiness(userId) && isNotSelf(userId) && canModifyRole(userId);
+      allow create: if request.auth != null && isSameBusinessForCreate() && canCreateWithRole() && isNotSelf(userId);
+    }
+
+    function canModifyRole(targetUserId) {
+      let target = get(/databases/$(database)/documents/users/$(targetUserId)).data;
+
+      // Admins can only change roles between 'maker' and 'taker'
+      return (request.auth.token.role == 'admin' &&
+              target.role in ['maker', 'taker'] &&
+              request.resource.data.role in ['maker', 'taker']) ||
+             // Prevent admins from assigning 'admin' role
+             (request.auth.token.role == 'admin' && request.resource.data.role == 'admin' ? false :
+             // Owners cannot have their roles modified
+             (target.role == 'owner' ? false :
+             // Only owners can modify admin roles
+             (target.role == 'admin' ? request.auth.token.role == 'owner' :
+             // Admins and owners can modify other roles
+             request.auth.token.role in ['admin', 'owner'])));
+    }
+
+    function isNotSelf(targetUserId) {
+      return request.auth.uid != targetUserId;
+    }
+
+    function canCreateWithRole() {
+      let incoming = request.resource.data;
+
+      // Allow owners to create admins and admins to create maker/taker users
+      return (
+        (request.auth.token.role == 'owner' && incoming.role in ['admin', 'maker', 'taker']) ||
+        (request.auth.token.role == 'admin' && incoming.role in ['maker', 'taker'])
+      );
+    }
+    
+    function isUserInBusiness(businessId) {
+      return request.auth.token.businessId == businessId;
+    }
+
+    function isAdminOrOwner() {
+      return request.auth.token.role in ['admin', 'owner'];
+    }
+
+    function isSameBusiness(targetUserId) {
+      let target = get(/databases/$(database)/documents/users/$(targetUserId)).data;
+      return request.auth != null &&
+             request.auth.token.businessId != null &&
+             target.businessId != null &&
+             request.auth.token.businessId == target.businessId;
+    }
+
+    function isSameBusinessForCreate() {
+      let incoming = request.resource.data;
+
+      return request.auth != null &&
+             request.auth.token.businessId != null &&
+             incoming.businessId != null &&
+             request.auth.token.businessId == incoming.businessId;
+    }
+
+    match /{document=**} {
+      // Deny list on all collections by default
+      allow list: if false;
+    }
+  }
+}

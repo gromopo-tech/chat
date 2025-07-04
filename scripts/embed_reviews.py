@@ -29,6 +29,7 @@ def main():
                     "text": text,
                     "place_id": place_id,
                     "rating": review["rating"],
+                    "publishTime": review.get("publishTime"),
                     "author": review.get("authorAttribution", {}).get(
                         "displayName", "Unknown"
                     ),

@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Test, coverage, and build artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+htmlcov/
+.tox/
+.nox/
+dist/
+build/
+*.egg-info/
+.eggs/
+*.log
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Local config and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Qdrant data (if you use a local volume) and related scripts
+qdrant_data/
+scripts/
+
+# Sample data and test data (if not needed in image)
+sample_reviews.json
+
+# Docker Compose files (if not needed in image)
+docker-compose.yml
+docker-compose.override.yml
+
+# README and docs (if not needed in image)
+README.md

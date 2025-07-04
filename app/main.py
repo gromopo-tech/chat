@@ -28,4 +28,9 @@ async def rag_query(request: QueryRequest):
         result = get_rag_response(request.query, request.place_id)
         return result
     except Exception as e:
-        return {"answer": "Error", "context": [str(e)], "intent": None, "parsed_filter": None}
+        return {
+            "answer": "Error",
+            "context": [str(e)],
+            "intent": None,
+            "parsed_filter": None,
+        }

@@ -12,8 +12,8 @@ VECTOR_SIZE = 3072
 
 
 def iso8601_to_timestamp(dt_str):
-    if dt_str.endswith('Z'):
-        dt_str = dt_str[:-1] + '+00:00'
+    if dt_str.endswith("Z"):
+        dt_str = dt_str[:-1] + "+00:00"
     return datetime.fromisoformat(dt_str).timestamp()
 
 
@@ -29,7 +29,9 @@ def main():
         embedding = embeddings_model.embed_query(text)
         place_id = review["name"].split("/")[1]
         publish_time_str = review.get("publishTime")
-        publish_time_ts = iso8601_to_timestamp(publish_time_str) if publish_time_str else None
+        publish_time_ts = (
+            iso8601_to_timestamp(publish_time_str) if publish_time_str else None
+        )
         points.append(
             PointStruct(
                 id=i,

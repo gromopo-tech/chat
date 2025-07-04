@@ -10,8 +10,8 @@ This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant
 
 ### 1. **Clone the Repository**
 ```sh
-git clone <your-repo-url>
-cd <your-repo-directory>
+git clone https://github.com/gromopo-tech/chat.git
+cd chat
 ```
 
 ### 2. **Start Qdrant with Docker Compose**
@@ -82,7 +82,7 @@ curl -X POST "http://localhost:8000/rag/query" \
   ```
 
 You should see a response like this:
-```
+
 Based on the provided reviews, here are the things people like about this place:
 
 *   **The Food and Drinks:** People praise the great taste and good quality of the ingredients. The menu is described as varied, with unique sandwiches as well as classics. One person called their sandwich "glorious" and the iced tea "restorative." The food is also seen as comforting.
@@ -92,7 +92,7 @@ Based on the provided reviews, here are the things people like about this place:
 *   **The Staff:** The staff is noted as being peaceful, cheery, and helpful.
 
 *   **Other Features:** The shop also offers a variety of other items for sale, such as cheeses, sausages, breads, and wines. The bathrooms were also noted to be clean.
-```
+
 ---
 
 ## 🐳 Using Docker Compose for App and Qdrant

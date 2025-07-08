@@ -1,6 +1,7 @@
 # Review based RAG LLM FastAPI App
 
-This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
+This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. \
+It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
 
 **Note:** This project was developed and tested with Python 3.13.5. Other Python 3.13.x versions should work, but earlier versions may not be compatible.
 
@@ -65,13 +66,13 @@ python -m scripts.embed_reviews
 ```sh
 uvicorn app.main:app --reload
 ```
-- The API will be available at [http://localhost:8000](http://localhost:8000)
-- Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- The API will be available at [http://localhost:8080](http://localhost:8080)
+- Interactive docs: [http://localhost:8080/docs](http://localhost:8080/docs)
 
 ### 8. **Test the API**
 Send a POST request to the RAG endpoint:
 ```sh
-curl -X POST "http://localhost:8000/rag/query" \
+curl -X POST "http://localhost:8080/rag/query" \
   -H "Content-Type: application/json" \
   -d '{"query": "What do people like about this place?", "place_id": "ChIJuVyExGENK4cRooPhJIUgnxk"}'
 ```
@@ -103,7 +104,7 @@ You can run both Qdrant and the FastAPI app with Docker Compose:
 docker-compose up -d
 ```
 
-- The app will be available at [http://localhost:8000](http://localhost:8000)
+- The app will be available at [http://localhost:8080](http://localhost:8080)
 - Qdrant will be at [http://localhost:6333](http://localhost:6333)
 
 You can check the status of the containers with:

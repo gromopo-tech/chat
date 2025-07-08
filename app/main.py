@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.chains import get_rag_response
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional, Dict, Any
 
 
 # -------- FastAPI app --------
@@ -17,6 +17,8 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     context: List[str]
+    intent: Optional[str] = None
+    parsed_filter: Optional[Dict[str, Any]] = None
 
 
 # -------- Routes --------
@@ -26,4 +28,9 @@ async def rag_query(request: QueryRequest):
         result = get_rag_response(request.query, request.place_id)
         return result
     except Exception as e:
-        return {"answer": "Error", "context": [str(e)]}
+        return {
+            "answer": "Error",
+            "context": [str(e)],
+            "intent": None,
+            "parsed_filter": None,
+        }

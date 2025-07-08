@@ -1,6 +1,7 @@
 from qdrant_client import QdrantClient
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor
 
 
 COLLECTION_NAME = "reviews"
@@ -60,3 +61,36 @@ def build_qdrant_filter(parsed_filter: dict) -> dict:
         ts = iso8601_to_timestamp(parsed_filter["publishTime"]["$gte"])
         must.append({"key": "publishTime", "range": {"gte": ts}})
     return {"must": must} if must else None
+
+#TODO: Pass stats to prompt_template
+def get_review_stats_parallel(qdrant_client, collection_name, place_id):
+    now = datetime.now(timezone.utc)
+    periods = {
+        "week": now - timedelta(days=7),
+        "month": now - timedelta(days=30),
+        "year": now - timedelta(days=365),
+    }
+    def count_for(period, rating, since):
+        filter_ = {
+            "must": [
+                {"key": "place_id", "match": {"value": place_id}},
+                {"key": "rating", "match": {"value": rating}},
+                {"key": "publishTime", "range": {"gte": since.isoformat()}},
+            ]
+        }
+        count = qdrant_client.count(
+            collection_name=collection_name,
+            filter=filter_
+        ).count
+        return (period, rating, count)
+    stats = {period: {} for period in periods}
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(count_for, period, rating, since)
+            for period, since in periods.items()
+            for rating in range(1, 6)
+        ]
+        for future in futures:
+            period, rating, count = future.result()
+            stats[period][rating] = count
+    return stats

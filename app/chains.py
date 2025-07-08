@@ -28,7 +28,7 @@ def get_rag_response(user_query: str, place_id: str = None):
     retriever = vectorstore.as_retriever(
         search_kwargs={
             "filter": qdrant_filter,
-            "k": 4,  # TODO: after embedding all 1k reviews, experiment with different values of k from 5-10 to see which yeilds best results
+            "k": 20
         }
     )
 

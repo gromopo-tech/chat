@@ -1,6 +1,7 @@
 # Review based RAG LLM FastAPI App
 
-This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
+This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. \
+It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
 
 **Note:** This project was developed and tested with Python 3.13.5. Other Python 3.13.x versions should work, but earlier versions may not be compatible.
 

@@ -48,11 +48,14 @@ def main():
             )
         )
 
-    get_qdrant().recreate_collection(
+    qdrant = get_qdrant()
+    if qdrant.collection_exists(collection_name=COLLECTION_NAME):
+        qdrant.delete_collection(collection_name=COLLECTION_NAME)
+    qdrant.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
     )
-    get_qdrant().upsert(collection_name=COLLECTION_NAME, points=points)
+    qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
     print(f"✅ Inserted {len(points)} reviews into collection '{COLLECTION_NAME}'.")
 

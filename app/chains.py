@@ -3,6 +3,7 @@ from langchain_qdrant import QdrantVectorStore
 from app.models import embeddings_model, llm
 from app.vectorstore import get_qdrant, COLLECTION_NAME, build_qdrant_filter
 from app.query_parser import parse_query_with_llm
+from qdrant_client import models
 
 
 def get_rag_response(user_query: str, place_id: str = None):
@@ -14,9 +15,13 @@ def get_rag_response(user_query: str, place_id: str = None):
     qdrant_filter = build_qdrant_filter(filter_dict)
     # Add place_id to filter if provided
     if place_id:
+        place_id_condition = models.FieldCondition(
+            key="place_id", match=models.MatchValue(value=place_id)
+        )
         if qdrant_filter is None:
-            qdrant_filter = {"must": []}
-        qdrant_filter["must"].append({"key": "place_id", "match": {"value": place_id}})
+            qdrant_filter = models.Filter(must=[place_id_condition])
+        else:
+            qdrant_filter.must.append(place_id_condition)
 
     vectorstore = QdrantVectorStore(
         client=get_qdrant(),
@@ -26,10 +31,7 @@ def get_rag_response(user_query: str, place_id: str = None):
     )
 
     retriever = vectorstore.as_retriever(
-        search_kwargs={
-            "filter": qdrant_filter,
-            "k": 20
-        }
+        search_kwargs={"filter": qdrant_filter, "k": 20}
     )
 
     qa = RetrievalQA.from_chain_type(

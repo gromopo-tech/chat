@@ -15,38 +15,36 @@ git clone https://github.com/gromopo-tech/chat.git
 cd chat
 ```
 
-### 2. **Start Qdrant with Docker Compose**
-This will start a persistent Qdrant instance for local development.
-
-```sh
-docker-compose up -d qdrant
-```
-
-- Qdrant will be available at `localhost:6333`.
-
-### 3. **Set Up Google Application Default Credentials**
+### 2. **Set Up Google Application Default Credentials**
 - Make sure you have Vertex AI API enabled and run:
   ```sh
   gcloud auth application-default login
   ```
 - This creates the ADC file at `~/.config/gcloud/application_default_credentials.json`.
 
-### 4. **Install Python Dependencies (for local runs)**
+### 3. **Set Environment Variables**
+```sh
+export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json
+export VERTEX_LOCATION=<gcp-region-associated-with-vertex-ai-api-credentials>
+export VERTEX_PROJECT=<gcp-project-id-associated-with-vertex-ai-api-credentials>
+```
+
+### 4. **Start Qdrant and FastAPI with Docker Compose**
+This will start a persistent Qdrant instance for local development.
+
+```sh
+docker-compose up -d
+```
+
+- Qdrant will be available at [http://localhost:6333](http://localhost:6333)
+- The API will be available at [http://localhost:8080](http://localhost:8080)
+- Interactive docs: [http://localhost:8080/docs](http://localhost:8080/docs)
+
+### 5. **Install Python Dependencies (for local runs)**
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 5. **Set Environment Variables**
-
-#### **Local Development**
-```sh
-export QDRANT_HOST=localhost
-export QDRANT_PORT=6333
-export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json
-export VERTEX_LOCATION=<gcp-region-associated-with-vertex-ai-api-credentials>
-export VERTEX_PROJECT=<gcp-project-id-associated-with-vertex-ai-api-credentials>
 ```
 
 ### 6. **Embed Reviews into Qdrant**
@@ -61,13 +59,6 @@ python -m scripts.embed_reviews
   🧠 Embedding 5 reviews one by one...
   ✅ Inserted 5 reviews into collection 'reviews'.
   ```
-
-### 7. **Run the FastAPI App Locally**
-```sh
-uvicorn app.main:app --reload
-```
-- The API will be available at [http://localhost:8080](http://localhost:8080)
-- Interactive docs: [http://localhost:8080/docs](http://localhost:8080/docs)
 
 ### 8. **Test the API**
 Send a POST request to the RAG endpoint:

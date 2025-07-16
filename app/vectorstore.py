@@ -1,4 +1,4 @@
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, models
 import os
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
@@ -8,23 +8,23 @@ COLLECTION_NAME = "reviews"
 
 
 def get_qdrant():
-    qdrant_url = os.getenv("QDRANT_URL")
-    qdrant_port = int(os.getenv("QDRANT_PORT", 6333))
-    if qdrant_url:
-        # Production/Cloud: use URL and API key
-        return QdrantClient(url=qdrant_url, port=qdrant_port)
-    else:
-        # Local/dev: use host and port
-        qdrant_host = os.getenv("QDRANT_HOST", "localhost")
-        return QdrantClient(host=qdrant_host, port=qdrant_port)
+    qdrant_host = os.getenv("QDRANT_HOST", "localhost")
+    return QdrantClient(host=qdrant_host, prefer_grpc=True)
 
 
 def get_relevant_reviews(query_embedding: list[float], place_id: str, top_k=5):
+    filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="place_id", match=models.MatchValue(value=place_id)
+            )
+        ]
+    )
     search = get_qdrant().search(
         collection_name=COLLECTION_NAME,
         query_vector=query_embedding,
         limit=top_k,
-        filter={"must": [{"key": "place_id", "match": {"value": place_id}}]},
+        filter=filter,
     )
     return [hit.payload["text"] for hit in search]
 
@@ -36,32 +36,42 @@ def iso8601_to_timestamp(dt_str):
     return datetime.fromisoformat(dt_str).timestamp()
 
 
-def build_qdrant_filter(parsed_filter: dict) -> dict:
-    """Convert parsed filter to Qdrant filter format."""
+def build_qdrant_filter(parsed_filter: dict) -> models.Filter:
+    """Convert parsed filter to Qdrant models.Filter format for gRPC."""
     must = []
     if not parsed_filter:
         return None
     if "rating" in parsed_filter:
         rating = parsed_filter["rating"]
         if "$in" in rating:
-            must.append({"key": "rating", "match": {"any": rating["$in"]}})
+            must.append(
+                models.FieldCondition(
+                    key="rating", match=models.MatchAny(any=rating["$in"])
+                )
+            )
         if "$gte" in rating or "$lte" in rating:
             rng = {}
             if "$gte" in rating:
                 rng["gte"] = rating["$gte"]
             if "$lte" in rating:
                 rng["lte"] = rating["$lte"]
-            must.append({"key": "rating", "range": rng})
+            must.append(models.FieldCondition(key="rating", range=models.Range(**rng)))
     if "languageCode" in parsed_filter:
         must.append(
-            {"key": "languageCode", "match": {"value": parsed_filter["languageCode"]}}
+            models.FieldCondition(
+                key="languageCode",
+                match=models.MatchValue(value=parsed_filter["languageCode"]),
+            )
         )
     if "publishTime" in parsed_filter and "$gte" in parsed_filter["publishTime"]:
         ts = iso8601_to_timestamp(parsed_filter["publishTime"]["$gte"])
-        must.append({"key": "publishTime", "range": {"gte": ts}})
-    return {"must": must} if must else None
+        must.append(
+            models.FieldCondition(key="publishTime", range=models.Range(gte=ts))
+        )
+    return models.Filter(must=must) if must else None
 
-#TODO: Pass stats to prompt_template
+
+# TODO: Pass stats to prompt_template
 def get_review_stats_parallel(qdrant_client, collection_name, place_id):
     now = datetime.now(timezone.utc)
     periods = {
@@ -69,19 +79,27 @@ def get_review_stats_parallel(qdrant_client, collection_name, place_id):
         "month": now - timedelta(days=30),
         "year": now - timedelta(days=365),
     }
+
     def count_for(period, rating, since):
-        filter_ = {
-            "must": [
-                {"key": "place_id", "match": {"value": place_id}},
-                {"key": "rating", "match": {"value": rating}},
-                {"key": "publishTime", "range": {"gte": since.isoformat()}},
+        filter_ = models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="place_id", match=models.MatchValue(value=place_id)
+                ),
+                models.FieldCondition(
+                    key="rating", match=models.MatchValue(value=rating)
+                ),
+                models.FieldCondition(
+                    key="publishTime",
+                    range=models.Range(gte=iso8601_to_timestamp(since.isoformat())),
+                ),
             ]
-        }
+        )
         count = qdrant_client.count(
-            collection_name=collection_name,
-            filter=filter_
+            collection_name=collection_name, filter=filter_
         ).count
         return (period, rating, count)
+
     stats = {period: {} for period in periods}
     with ThreadPoolExecutor() as executor:
         futures = [

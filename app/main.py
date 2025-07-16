@@ -34,3 +34,8 @@ async def rag_query(request: QueryRequest):
             "intent": None,
             "parsed_filter": None,
         }
+
+
+@app.get("/")
+def homepage():
+    return {"title": "gromopo - review based rag llm"}

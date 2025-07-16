@@ -17,7 +17,8 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/adc.json
-      - GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
+      - VERTEX_PROJECT=${VERTEX_PROJECT}
+      - VERTEX_LOCATION=${VERTEX_LOCATION}
     volumes:
       - $HOME/.config/gcloud/application_default_credentials.json:/tmp/adc.json:ro
     depends_on:

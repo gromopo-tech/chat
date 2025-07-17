@@ -41,9 +41,7 @@ def build_qdrant_filter(parsed_filter: dict) -> models.Filter:
             must.append(models.FieldCondition(key="rating", range=models.Range(**rng)))
     if "createTime" in parsed_filter and "$gte" in parsed_filter["createTime"]:
         ts = iso8601_to_timestamp(parsed_filter["createTime"]["$gte"])
-        must.append(
-            models.FieldCondition(key="createTime", range=models.Range(gte=ts))
-        )
+        must.append(models.FieldCondition(key="createTime", range=models.Range(gte=ts)))
     return models.Filter(must=must) if must else None
 
 

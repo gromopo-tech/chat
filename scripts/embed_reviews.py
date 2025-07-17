@@ -9,13 +9,19 @@ from datetime import datetime
 
 import argparse
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Embed reviews and upload to Qdrant.")
     parser.add_argument(
-        "--dir", "-d", type=str, default=".",
-        help="Path to the directory containing review files (default: current directory)"
+        "--dir",
+        "-d",
+        type=str,
+        default=".",
+        help="Path to the directory containing review files (default: current directory)",
     )
     return parser.parse_args()
+
+
 VECTOR_SIZE = 3072
 
 
@@ -25,11 +31,16 @@ def iso8601_to_timestamp(dt_str):
     return datetime.fromisoformat(dt_str).timestamp()
 
 
-
 def main():
     args = parse_args()
     reviews_dir = Path(args.dir)
-    review_files = sorted([f for f in reviews_dir.iterdir() if f.is_file() and f.name.startswith("reviews-")])
+    review_files = sorted(
+        [
+            f
+            for f in reviews_dir.iterdir()
+            if f.is_file() and f.name.startswith("reviews-")
+        ]
+    )
     if not review_files:
         print(f"No files starting with 'reviews-' found in {reviews_dir}")
         return
@@ -77,11 +88,13 @@ def main():
     qdrant.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
-        optimizers_config=models.OptimizersConfigDiff(default_segment_number=16)
+        optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
     )
     qdrant.upsert(collection_name=COLLECTION_NAME, points=all_points)
 
-    print(f"✅ Inserted {total_reviews} reviews from {len(review_files)} files into collection '{COLLECTION_NAME}'.")
+    print(
+        f"✅ Inserted {total_reviews} reviews from {len(review_files)} files into collection '{COLLECTION_NAME}'."
+    )
 
 
 if __name__ == "__main__":

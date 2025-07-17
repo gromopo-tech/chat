@@ -6,22 +6,13 @@ from app.query_parser import parse_query_with_llm
 from qdrant_client import models
 
 
-def get_rag_response(user_query: str, place_id: str = None):
+def get_rag_response(user_query: str):
     parsed = parse_query_with_llm(user_query)
     embedding_text = parsed["query_embedding_text"]
     filter_dict = parsed.get("filter")
     intent = parsed.get("intent", "summarize_reviews")
 
     qdrant_filter = build_qdrant_filter(filter_dict)
-    # Add place_id to filter if provided
-    if place_id:
-        place_id_condition = models.FieldCondition(
-            key="place_id", match=models.MatchValue(value=place_id)
-        )
-        if qdrant_filter is None:
-            qdrant_filter = models.Filter(must=[place_id_condition])
-        else:
-            qdrant_filter.must.append(place_id_condition)
 
     vectorstore = QdrantVectorStore(
         client=get_qdrant(),

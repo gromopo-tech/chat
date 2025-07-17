@@ -12,23 +12,6 @@ def get_qdrant():
     return QdrantClient(host=qdrant_host, prefer_grpc=True)
 
 
-def get_relevant_reviews(query_embedding: list[float], place_id: str, top_k=5):
-    filter = models.Filter(
-        must=[
-            models.FieldCondition(
-                key="place_id", match=models.MatchValue(value=place_id)
-            )
-        ]
-    )
-    search = get_qdrant().search(
-        collection_name=COLLECTION_NAME,
-        query_vector=query_embedding,
-        limit=top_k,
-        filter=filter,
-    )
-    return [hit.payload["text"] for hit in search]
-
-
 def iso8601_to_timestamp(dt_str):
     # Handles 'Z' for UTC
     if dt_str.endswith("Z"):
@@ -56,23 +39,16 @@ def build_qdrant_filter(parsed_filter: dict) -> models.Filter:
             if "$lte" in rating:
                 rng["lte"] = rating["$lte"]
             must.append(models.FieldCondition(key="rating", range=models.Range(**rng)))
-    if "languageCode" in parsed_filter:
+    if "createTime" in parsed_filter and "$gte" in parsed_filter["createTime"]:
+        ts = iso8601_to_timestamp(parsed_filter["createTime"]["$gte"])
         must.append(
-            models.FieldCondition(
-                key="languageCode",
-                match=models.MatchValue(value=parsed_filter["languageCode"]),
-            )
-        )
-    if "publishTime" in parsed_filter and "$gte" in parsed_filter["publishTime"]:
-        ts = iso8601_to_timestamp(parsed_filter["publishTime"]["$gte"])
-        must.append(
-            models.FieldCondition(key="publishTime", range=models.Range(gte=ts))
+            models.FieldCondition(key="createTime", range=models.Range(gte=ts))
         )
     return models.Filter(must=must) if must else None
 
 
 # TODO: Pass stats to prompt_template
-def get_review_stats_parallel(qdrant_client, collection_name, place_id):
+def get_review_stats_parallel(qdrant_client, collection_name):
     now = datetime.now(timezone.utc)
     periods = {
         "week": now - timedelta(days=7),
@@ -84,13 +60,10 @@ def get_review_stats_parallel(qdrant_client, collection_name, place_id):
         filter_ = models.Filter(
             must=[
                 models.FieldCondition(
-                    key="place_id", match=models.MatchValue(value=place_id)
-                ),
-                models.FieldCondition(
                     key="rating", match=models.MatchValue(value=rating)
                 ),
                 models.FieldCondition(
-                    key="publishTime",
+                    key="createTime",
                     range=models.Range(gte=iso8601_to_timestamp(since.isoformat())),
                 ),
             ]

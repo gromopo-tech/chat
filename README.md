@@ -51,13 +51,13 @@ pip install -r requirements.txt
 This script will embed the sample reviews and upload them to your Qdrant instance.
 
 ```sh
-python -m scripts.embed_reviews
+python -m scripts.embed_reviews --dir reviews/
 ```
 
 - You should see output like:
   ```
-  🧠 Embedding 5 reviews one by one...
-  ✅ Inserted 5 reviews into collection 'reviews'.
+  🧠 Embedding 14 reviews one by one...
+  ✅ Inserted 14 reviews into collection 'reviews'.
   ```
 
 ### 8. **Test the API**
@@ -65,7 +65,7 @@ Send a POST request to the RAG endpoint:
 ```sh
 curl -X POST "http://localhost:8080/rag/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What do people like about this place?", "place_id": "ChIJuVyExGENK4cRooPhJIUgnxk"}'
+  -d '{"query": "What do people like about this place?"}'
 ```
 
 - To extract just the answer (requires `jq`):
@@ -121,7 +121,7 @@ docker-compose logs -f
   - On Cloud Run, use the default service account or set up Workload Identity.
 - **No context returned:**
   - Make sure you ran the embedding script after Qdrant was started.
-  - Check that the `place_id` in your query matches the reviews in Qdrant.
+  # No need to specify `place_id` in your query; all reviews are for the same place.
 
 ---
 

@@ -22,7 +22,6 @@ def test_rag_query_with_mocked_rag(mock_rag_response):
     response = client.post(
         "/rag/query",
         json={
-            "place_id": "ChIJuVyExGENK4cRooPhJIUgnxk",
             "query": "What do people dislike about this place?",
         },
     )
@@ -44,26 +43,24 @@ def test_parse_query_with_llm(mock_llm):
     # Mock the LLM output
     mock_llm.invoke.return_value = (
         '{"query_embedding_text": "What do people dislike about this place?",'
-        ' "filter": {"rating": {"$lte": 3}, "publishTime": {"$gte": "2024-05-01T00:00:00Z"}},'
+        ' "filter": {"rating": {"$lte": 3}, "createTime": {"$gte": "2024-05-01T00:00:00Z"}},'
         ' "intent": "list_cons"}'
     )
     user_query = "What do people dislike about this place in the last month?"
     parsed = parse_query_with_llm(user_query)
     assert parsed["query_embedding_text"] == "What do people dislike about this place?"
     assert parsed["filter"]["rating"]["$lte"] == 3
-    assert parsed["filter"]["publishTime"]["$gte"] == "2024-05-01T00:00:00Z"
+    assert parsed["filter"]["createTime"]["$gte"] == "2024-05-01T00:00:00Z"
     assert parsed["intent"] == "list_cons"
 
 
 def test_build_qdrant_filter():
     parsed_filter = {
         "rating": {"$lte": 3, "$gte": 1},
-        "languageCode": "en",
-        "publishTime": {"$gte": "2024-05-01T00:00:00Z"},
+        "createTime": {"$gte": "2024-05-01T00:00:00Z"},
     }
     qdrant_filter = build_qdrant_filter(parsed_filter)
     # Check that the filter contains the correct must conditions
-    keys = [cond["key"] for cond in qdrant_filter["must"]]
+    keys = [cond.key for cond in qdrant_filter.must]
     assert "rating" in keys
-    assert "languageCode" in keys
-    assert "publishTime" in keys
+    assert "createTime" in keys

@@ -4,10 +4,11 @@ services:
   qdrant:
     image: qdrant/qdrant
     ports:
-      - "6333:6333"
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    cpus: '4.0'
+    mem_limit: 2048M
 
   app:
     build:
@@ -15,7 +16,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
+      - QDRANT_PORT=6334
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/adc.json
       - VERTEX_PROJECT=${VERTEX_PROJECT}
       - VERTEX_LOCATION=${VERTEX_LOCATION}

@@ -11,7 +11,6 @@ app = FastAPI()
 # -------- Data Models --------
 class QueryRequest(BaseModel):
     query: str
-    place_id: str
 
 
 class QueryResponse(BaseModel):
@@ -25,7 +24,7 @@ class QueryResponse(BaseModel):
 @app.post("/rag/query", response_model=QueryResponse)
 async def rag_query(request: QueryRequest):
     try:
-        result = get_rag_response(request.query, request.place_id)
+        result = get_rag_response(request.query)
         return result
     except Exception as e:
         return {

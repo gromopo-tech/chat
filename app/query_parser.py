@@ -20,7 +20,7 @@ Given a user query, extract:
 - intent: one of "summarize_reviews", "list_pros", "list_cons", "general_question"
 
 Instructions:
-- For complaints/cons (intent "list_cons"), set rating filter to [1, 2, 3].
+- For complaints/cons (intent "list_cons"), set rating filter to [1, 2].
 - For rating, always use integers 1-5 ("ONE"=1, ..., "FIVE"=5).
 - For createTime, use ISO8601 format.
 

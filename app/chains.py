@@ -21,7 +21,7 @@ def get_rag_response(user_query: str):
     qdrant_filter = build_qdrant_filter(filter_dict)
 
     retriever = vectorstore.as_retriever(
-        search_kwargs={"filter": qdrant_filter, "k": 5}
+        search_kwargs={"filter": qdrant_filter, "k": 10}
     )
 
     qa = RetrievalQA.from_chain_type(

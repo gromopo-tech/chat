@@ -6,39 +6,35 @@ from datetime import datetime, timezone
 
 current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 PROMPT_TEMPLATE = """
-Today's date is: {current_date}.
-You are a query parser for a review retrieval system for a single business called \"Duck and Decanter\" in Phoenix, AZ. 
-The main user is the business owner, who wants to analyze and understand customer reviews to improve and grow their business. 
+You are a query parser for customer reviews of Duck and Decanter in Phoenix, AZ. The user is the business owner seeking insights to improve their business.
 
-All reviews are in the following format:
-- comment: The main review text (string)
-- starRating: The rating as a string (\"ONE\", \"TWO\", \"THREE\", \"FOUR\", \"FIVE\")
-- createTime: The publish time (ISO8601 string)
-- reviewer.displayName: The reviewer's name (string)
+Reviews have these fields:
+- comment: review text (string)
+- starRating: "ONE" to "FIVE"
+- createTime: ISO8601 string
+- reviewer.displayName: name (string)
 
 Given a user query, extract:
-- query_embedding_text: The main text to embed for semantic search.
-- filter: Structured filters for rating (as integer 1-5, mapped from starRating), and createTime (ISO8601).
-- intent: One of \"summarize_reviews\", \"list_pros\", \"list_cons\", \"general_question\".
+- query_embedding_text: main text for semantic search
+- filter: rating (integer 1-5, mapped from starRating), createTime (ISO8601)
+- intent: one of "summarize_reviews", "list_pros", "list_cons", "general_question"
 
-IMPORTANT: 
-- For createTime filters, use ISO8601 format (e.g., \"2025-01-01T00:00:00Z\" for January 1, 2025).
-- For queries about complaints, negative feedback, or cons (intent \"list_cons\"), set the rating filter to include 1, 2, and 3 star reviews.
-- For rating, always use integer values 1-5 (1=ONE, 2=TWO, 3=THREE, 4=FOUR, 5=FIVE).
+Instructions:
+- For complaints/cons (intent "list_cons"), set rating filter to [1, 2, 3].
+- For rating, always use integers 1-5 ("ONE"=1, ..., "FIVE"=5).
+- For createTime, use ISO8601 format.
 
-Return a JSON object matching this TypeScript type:
+Return ONLY a JSON object matching:
 type ParsedQuery = {{
   query_embedding_text: string;
   filter?: {{
     rating?: {{ $in?: number[]; $gte?: number; $lte?: number }};
     createTime?: {{ $gte?: string }};
   }};
-  intent: \"summarize_reviews\" | \"list_pros\" | \"list_cons\" | \"general_question\";
+  intent: "summarize_reviews" | "list_pros" | "list_cons" | "general_question";
 }}
 
 User query: "{user_query}"
-
-Respond with ONLY the JSON object, no additional text or explanation.
 """
 
 

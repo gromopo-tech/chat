@@ -3,8 +3,14 @@ from langchain_qdrant import QdrantVectorStore
 from app.models import embeddings_model, llm
 from app.vectorstore import get_qdrant, COLLECTION_NAME, build_qdrant_filter
 from app.query_parser import parse_query_with_llm
-from qdrant_client import models
 
+
+vectorstore = QdrantVectorStore(
+        client=get_qdrant(),
+        collection_name=COLLECTION_NAME,
+        embedding=embeddings_model,
+        content_payload_key="text",
+    )
 
 def get_rag_response(user_query: str):
     parsed = parse_query_with_llm(user_query)
@@ -14,15 +20,8 @@ def get_rag_response(user_query: str):
 
     qdrant_filter = build_qdrant_filter(filter_dict)
 
-    vectorstore = QdrantVectorStore(
-        client=get_qdrant(),
-        collection_name=COLLECTION_NAME,
-        embedding=embeddings_model,
-        content_payload_key="text",
-    )
-
     retriever = vectorstore.as_retriever(
-        search_kwargs={"filter": qdrant_filter, "k": 20}
+        search_kwargs={"filter": qdrant_filter, "k": 5}
     )
 
     qa = RetrievalQA.from_chain_type(

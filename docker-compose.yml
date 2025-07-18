@@ -11,12 +11,13 @@ services:
     mem_limit: 2048M
 
   app:
+    cpus: '1.0'
+    mem_limit: 1024M
     build:
       context: .
       dockerfile: Dockerfile
     environment:
       - QDRANT_HOST=${QDRANT_HOST}
-      - QDRANT_PORT=6334
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/adc.json
       - VERTEX_PROJECT=${VERTEX_PROJECT}
       - VERTEX_LOCATION=${VERTEX_LOCATION}

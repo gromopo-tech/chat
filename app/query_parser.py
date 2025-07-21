@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 PROMPT_TEMPLATE = """
+Today's date is: {current_date}.
 You are a query parser for customer reviews of Duck and Decanter in Phoenix, AZ. The user is the business owner seeking insights to improve their business.
 
 Reviews have these fields:
@@ -14,13 +15,29 @@ Reviews have these fields:
 - createTime: ISO8601 string
 - reviewer.displayName: name (string)
 
+
 Given a user query, extract:
 - query_embedding_text: main text for semantic search
 - filter: rating (integer 1-5, mapped from starRating), createTime (ISO8601)
-- intent: one of "summarize_reviews", "list_pros", "list_cons", "general_question"
+- intent: one of:
+    "summarize reviews" (summarize all feedback)
+    "summarize complaints" (summarize negative feedback)
+    "summarize praise" (summarize positive feedback)
+    "list pros" (list positive aspects)
+    "list cons" (list negative aspects)
+    "trend analysis" (identify trends over time)
+    "suggest improvements" (actionable suggestions)
+    "customer sentiment" (overall sentiment summary)
+    "frequent requests" (common customer requests)
+    "service feedback" (feedback about staff/service)
+    "product feedback" (feedback about menu items/products)
+    "location feedback" (feedback about location/parking/cleanliness)
+    "compare periods" (compare feedback between time periods)
+    "general question" (other questions)
 
 Instructions:
-- For complaints/cons (intent "list_cons"), set rating filter to [1, 2].
+- When the user refers to "X star reviews", "X-star reviews", or similar, interpret this as reviews with rating X (where X is an integer from 1 to 5).
+- For complaints/cons (intent "list cons"), set rating filter to [1, 2].
 - For rating, always use integers 1-5 ("ONE"=1, ..., "FIVE"=5).
 - For createTime, use ISO8601 format.
 
@@ -31,7 +48,7 @@ type ParsedQuery = {{
     rating?: {{ $in?: number[]; $gte?: number; $lte?: number }};
     createTime?: {{ $gte?: string }};
   }};
-  intent: "summarize_reviews" | "list_pros" | "list_cons" | "general_question";
+  intent: "summarize reviews" | "summarize complaints" | "summarize praise" | "list pros" | "list cons" | "trend analysis" | "suggest improvements" | "customer sentiment" | "frequent requests" | "service feedback" | "product feedback" | "location feedback" | "compare periods" | "general question";
 }}
 
 User query: "{user_query}"

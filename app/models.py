@@ -1,15 +1,13 @@
-import os
-from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
+from pydantic import BaseModel
+from typing import Optional, List, Dict, Any
 
+class RagQueryRequest(BaseModel):
+    query: str
+    filter: Optional[Dict[str, Any]] = None
+    intent: Optional[str] = None
 
-llm = ChatVertexAI(
-    model="gemini-2.5-flash",
-    project=os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID")),
-    location=os.getenv("VERTEX_LOCATION", "us-central1"),
-)
-
-embeddings_model = VertexAIEmbeddings(
-    model_name="gemini-embedding-001",
-    project=os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID")),
-    location=os.getenv("VERTEX_LOCATION", "us-central1"),
-)
+class RagQueryResponse(BaseModel):
+    answer: str
+    context: List[str]
+    intent: Optional[str] = None
+    parsed_filter: Optional[Dict[str, Any]] = None

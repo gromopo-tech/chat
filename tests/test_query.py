@@ -35,7 +35,7 @@ def test_rag_query_with_mocked_rag(mock_rag_response):
 
 
 from app.query_parser import parse_query_with_llm
-from app.chains import build_qdrant_filter
+from app.rag_engine import build_qdrant_filter
 
 
 @patch("app.query_parser.llm")

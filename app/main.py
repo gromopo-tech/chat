@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.chains import get_rag_response
+from app.rag_engine import get_rag_response
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 

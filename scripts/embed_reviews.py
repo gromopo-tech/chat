@@ -1,17 +1,21 @@
-import json
-from pathlib import Path
-from qdrant_client import models
-from tqdm import tqdm
-from qdrant_client.models import VectorParams, Distance
-from app.models import embeddings_model
-from app.vectorstore import get_qdrant, COLLECTION_NAME
-from datetime import datetime
-
 import argparse
+from pathlib import Path
+from app.review_loader import load_and_format_reviews
+from google.cloud import aiplatform
+import os
+from tqdm import tqdm
+
+# Set up your embedding model and Vertex Vector Search index info
+EMBEDDING_MODEL = "textembedding-gecko@003"  # Or your preferred model
+PROJECT = os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID"))
+LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
+INDEX_ID = os.getenv("VERTEX_INDEX_ID")  # Set this in your .env or environment
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Embed reviews and upload to Qdrant.")
+    parser = argparse.ArgumentParser(
+        description="Embed reviews and upload to Vertex Vector Search."
+    )
     parser.add_argument(
         "--dir",
         "-d",
@@ -22,79 +26,47 @@ def parse_args():
     return parser.parse_args()
 
 
-VECTOR_SIZE = 3072
-
-
-def iso8601_to_timestamp(dt_str):
-    if dt_str.endswith("Z"):
-        dt_str = dt_str[:-1] + "+00:00"
-    return datetime.fromisoformat(dt_str).timestamp()
+def get_embedding(text: str, client):
+    # Use Vertex AI Embedding API
+    response = client.get_embeddings(model=EMBEDDING_MODEL, content=[text])
+    return response.embeddings[0].values
 
 
 def main():
     args = parse_args()
     reviews_dir = Path(args.dir)
     review_files = sorted(
-        [
-            f
-            for f in reviews_dir.iterdir()
-            if f.is_file() and f.name.startswith("reviews-")
-        ]
+        [f for f in reviews_dir.iterdir() if f.is_file() and f.name.startswith("reviews-")]
     )
     if not review_files:
         print(f"No files starting with 'reviews-' found in {reviews_dir}")
         return
 
+    aiplatform.init(project=PROJECT, location=LOCATION)
+    embedding_client = aiplatform.TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL)
+    vector_index = aiplatform.MatchingEngineIndex(index_name=INDEX_ID)
+
     all_points = []
-    total_reviews = 0
     idx = 0
     for review_file in review_files:
-        with open(review_file, "r") as f:
-            reviews = json.load(f)["reviews"]
+        reviews = load_and_format_reviews(str(review_file))
         print(f"🧠 Embedding {len(reviews)} reviews from {review_file.name}...")
         for review in tqdm(reviews, desc=review_file.name):
-            if "comment" not in review or "name" not in review:
-                continue
             text = review["comment"]
-            embedding = embeddings_model.embed_query(text)
-            # Map starRating (string) to int
-            star_map = {"ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5}
-            rating = star_map.get(review.get("starRating", ""), None)
-            create_time_str = review.get("createTime")
-            create_time_ts = (
-                iso8601_to_timestamp(create_time_str) if create_time_str else None
-            )
-            author = review.get("reviewer", {}).get("displayName", "Unknown")
-            review_id = review["name"].split("/")[-1]
-            all_points.append(
-                models.PointStruct(
-                    id=idx,
-                    vector=embedding,
-                    payload={
-                        "text": text,
-                        "rating": rating,
-                        "createTime": create_time_ts,
-                        "author": author,
-                        "review_id": review_id,
-                    },
-                )
-            )
+            embedding = embedding_client.get_embeddings([text])[0]
+            # Prepare the upsert record
+            point = {
+                "id": str(idx),
+                "embedding": embedding,
+                "metadata": review,  # You can flatten or filter fields as needed
+            }
+            all_points.append(point)
             idx += 1
-        total_reviews += len(reviews)
 
-    qdrant = get_qdrant()
-    if qdrant.collection_exists(collection_name=COLLECTION_NAME):
-        qdrant.delete_collection(collection_name=COLLECTION_NAME)
-    qdrant.create_collection(
-        collection_name=COLLECTION_NAME,
-        vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
-        optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
-    )
-    qdrant.upsert(collection_name=COLLECTION_NAME, points=all_points)
-
-    print(
-        f"✅ Inserted {total_reviews} reviews from {len(review_files)} files into collection '{COLLECTION_NAME}'."
-    )
+    # Upsert to Vertex Vector Search
+    print(f"🔼 Upserting {len(all_points)} vectors to Vertex Vector Search index '{INDEX_ID}'...")
+    vector_index.upsert_datapoints(datapoints=all_points)
+    print(f"✅ Inserted {len(all_points)} reviews into index '{INDEX_ID}'.")
 
 
 if __name__ == "__main__":

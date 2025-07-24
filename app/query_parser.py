@@ -1,6 +1,6 @@
 import json
 from typing import Dict, Any
-from app.models import llm
+from app.models import query_parser_llm
 from datetime import datetime, timezone
 
 
@@ -57,7 +57,7 @@ User query: "{user_query}"
 
 def parse_query_with_llm(user_query: str) -> Dict[str, Any]:
     prompt = PROMPT_TEMPLATE.format(user_query=user_query, current_date=current_date)
-    response = llm.invoke(prompt)
+    response = query_parser_llm.invoke(prompt)
     # Extract content from AIMessage object
     content = response.content if hasattr(response, "content") else str(response)
 

@@ -1,15 +1,21 @@
-import os
+from app.config import Config
 from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
 
 
 llm = ChatVertexAI(
-    model="gemini-2.5-flash",
-    project=os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID")),
-    location=os.getenv("VERTEX_LOCATION", "us-central1"),
+    model=Config.LLM_MODEL,
+    project=Config.PROJECT,
+    location=Config.LOCATION,
+)
+
+query_parser_llm = ChatVertexAI(
+    model=Config.QUERY_PARSER_MODEL,
+    project=Config.PROJECT,
+    location=Config.LOCATION,
 )
 
 embeddings_model = VertexAIEmbeddings(
-    model_name="gemini-embedding-001",
-    project=os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID")),
-    location=os.getenv("VERTEX_LOCATION", "us-central1"),
+    model_name=Config.EMBEDDING_MODEL,
+    project=Config.PROJECT,
+    location=Config.LOCATION,
 )

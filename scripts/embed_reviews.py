@@ -2,9 +2,10 @@ import json
 from pathlib import Path
 from qdrant_client import models
 from tqdm import tqdm
+from app.config import Config
 from qdrant_client.models import VectorParams, Distance
 from app.models import embeddings_model
-from app.vectorstore import get_qdrant, COLLECTION_NAME
+from app.vectorstore import get_qdrant
 from datetime import datetime
 
 import argparse
@@ -20,9 +21,6 @@ def parse_args():
         help="Path to the directory containing review files (default: current directory)",
     )
     return parser.parse_args()
-
-
-VECTOR_SIZE = 3072
 
 
 def iso8601_to_timestamp(dt_str):
@@ -83,17 +81,17 @@ def main():
         total_reviews += len(reviews)
 
     qdrant = get_qdrant()
-    if qdrant.collection_exists(collection_name=COLLECTION_NAME):
-        qdrant.delete_collection(collection_name=COLLECTION_NAME)
+    if qdrant.collection_exists(collection_name=Config.COLLECTION_NAME):
+        qdrant.delete_collection(collection_name=Config.COLLECTION_NAME)
     qdrant.create_collection(
-        collection_name=COLLECTION_NAME,
-        vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+        collection_name=Config.COLLECTION_NAME,
+        vectors_config=VectorParams(size=Config.VECTOR_SIZE, distance=Distance.COSINE),
         optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
     )
-    qdrant.upsert(collection_name=COLLECTION_NAME, points=all_points)
+    qdrant.upsert(collection_name=Config.COLLECTION_NAME, points=all_points)
 
     print(
-        f"✅ Inserted {total_reviews} reviews from {len(review_files)} files into collection '{COLLECTION_NAME}'."
+        f"✅ Inserted {total_reviews} reviews from {len(review_files)} files into collection '{Config.COLLECTION_NAME}'."
     )
 
 

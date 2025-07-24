@@ -1,14 +1,11 @@
 from qdrant_client import QdrantClient, models
-import os
+from app.config import Config
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
 
 
-COLLECTION_NAME = "reviews"
-
-
 def get_qdrant():
-    qdrant_host = os.getenv("QDRANT_HOST", "localhost")
+    qdrant_host = Config.QDRANT_HOST
     return QdrantClient(host=qdrant_host, prefer_grpc=True)
 
 

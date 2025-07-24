@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.chains import get_rag_response
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+from time import time
 
 
 # -------- FastAPI app --------
@@ -24,7 +25,9 @@ class QueryResponse(BaseModel):
 @app.post("/rag/query", response_model=QueryResponse)
 async def rag_query(request: QueryRequest):
     try:
+        start = time()
         result = get_rag_response(request.query)
+        print(f"Total RAG response time: {time() - start:.2f} seconds")
         return result
     except Exception as e:
         return {

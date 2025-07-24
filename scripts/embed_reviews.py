@@ -1,73 +1,98 @@
 import argparse
+import json
+from app.config import Config
 from pathlib import Path
-from app.review_loader import load_and_format_reviews
-from google.cloud import aiplatform
-import os
 from tqdm import tqdm
+from typing import List, Dict
+from google.cloud import aiplatform
+from vertexai.language_models import TextEmbeddingModel
+from google.cloud.aiplatform.matching_engine import MatchingEngineIndex
 
-# Set up your embedding model and Vertex Vector Search index info
-EMBEDDING_MODEL = "textembedding-gecko@003"  # Or your preferred model
-PROJECT = os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID"))
-LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
-INDEX_ID = os.getenv("VERTEX_INDEX_ID")  # Set this in your .env or environment
+TASK = "QUESTION_ANSWERING"
+BATCH_SIZE = 100
 
+def load_reviews(dirpath: Path) -> List[Dict]:
+    chunks = []
+    for file in tqdm(dirpath.glob("reviews*.json")):
+        for review in tqdm(json.load(open(file)).get("reviews", [])):
+            if "comment" in review:
+                rid = review.get("name", "") or review.get("id", "")
+                chunks.append({
+                    "id": rid.split("/")[-1],
+                    "text": review["comment"],
+                    "metadata": {
+                        "starRating": review.get("starRating", ""),
+                        "reviewer": review.get("reviewer", {}).get("displayName", ""),
+                        "createTime": review.get("createTime", ""),
+                    }
+                })
+    return chunks
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Embed reviews and upload to Vertex Vector Search."
+def embed_hybrid(texts: List[str]) -> List[Dict]:
+    """
+    Generates dense and sparse embeddings for a list of texts using the Vertex AI SDK.
+    NOTE: Using the deprecated aiplatform.TextEmbeddingModel because the recommended
+    google.genai library does not currently support sparse embeddings from Vertex.
+    TODO: Migrate to google.genai when the library is fixed.
+    """
+    model = TextEmbeddingModel.from_pretrained(Config.EMBEDDING_MODEL)
+    response = model.get_embeddings(
+        texts,
+        output_dimensionality=Config.VECTOR_DIMENSIONS,
     )
-    parser.add_argument(
-        "--dir",
-        "-d",
-        type=str,
-        default=".",
-        help="Path to the directory containing review files (default: current directory)",
-    )
-    return parser.parse_args()
 
+    results = []
+    for embedding in response:
+        results.append({
+            "dense": embedding.values,
+            "sparse": {
+                "values": embedding.sparse_values,
+                "dimensions": embedding.sparse_indices
+            } if hasattr(embedding, 'sparse_values') and embedding.sparse_values else None
+        })
+    return results
 
-def get_embedding(text: str, client):
-    # Use Vertex AI Embedding API
-    response = client.get_embeddings(model=EMBEDDING_MODEL, content=[text])
-    return response.embeddings[0].values
+def main(args):
+    aiplatform.init(project=args.project, location=args.location)
+    index = MatchingEngineIndex(index_name=args.index_name)
+    print("Loading Reviews...")
+    chunks = load_reviews(Path(args.dir))
+    print(f"Processing {len(chunks)} reviews...")
 
+    for i in range(0, len(chunks), BATCH_SIZE):
+        batch = chunks[i : i + BATCH_SIZE]
+        texts = [item["text"] for item in batch]
+        embeds = embed_hybrid(texts)
 
-def main():
-    args = parse_args()
-    reviews_dir = Path(args.dir)
-    review_files = sorted(
-        [f for f in reviews_dir.iterdir() if f.is_file() and f.name.startswith("reviews-")]
-    )
-    if not review_files:
-        print(f"No files starting with 'reviews-' found in {reviews_dir}")
-        return
+        datapoints = []
+        for item, embed in zip(batch, embeds):
+            # Convert metadata dict to list of Restriction objects for filtering
+            restricts = []
+            for key, value in item["metadata"].items():
+                if value:  # Only add if value is not empty
+                    restricts.append(
+                        {"namespace": key, "allow_list": [str(value)]}
+                    )
 
-    aiplatform.init(project=PROJECT, location=LOCATION)
-    embedding_client = aiplatform.TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL)
-    vector_index = aiplatform.MatchingEngineIndex(index_name=INDEX_ID)
-
-    all_points = []
-    idx = 0
-    for review_file in review_files:
-        reviews = load_and_format_reviews(str(review_file))
-        print(f"🧠 Embedding {len(reviews)} reviews from {review_file.name}...")
-        for review in tqdm(reviews, desc=review_file.name):
-            text = review["comment"]
-            embedding = embedding_client.get_embeddings([text])[0]
-            # Prepare the upsert record
-            point = {
-                "id": str(idx),
-                "embedding": embedding,
-                "metadata": review,  # You can flatten or filter fields as needed
+            dp = {
+                "datapoint_id": item["id"],
+                "feature_vector": embed["dense"],
+                # only include sparse if available
+                **({"sparse_embedding": embed["sparse"]} if embed["sparse"] else {}),
+                "restricts": restricts,
             }
-            all_points.append(point)
-            idx += 1
+            datapoints.append(dp)
 
-    # Upsert to Vertex Vector Search
-    print(f"🔼 Upserting {len(all_points)} vectors to Vertex Vector Search index '{INDEX_ID}'...")
-    vector_index.upsert_datapoints(datapoints=all_points)
-    print(f"✅ Inserted {len(all_points)} reviews into index '{INDEX_ID}'.")
+        print(f"Upserting {len(datapoints)} points...")
+        index.upsert_datapoints(datapoints=datapoints)
 
+    print("✅ Upload complete.")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dir", required=True, help="Directory with reviews*.json files")
+    parser.add_argument("--project", default=Config.PROJECT, help="GCP project ID")
+    parser.add_argument("--location", default=Config.LOCATION, help="GCP region")
+    parser.add_argument("--index-name", default=Config.INDEX_NAME, help="Full index resource name")
+    args = parser.parse_args()
+    main(args)

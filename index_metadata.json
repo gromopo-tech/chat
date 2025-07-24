@@ -1,0 +1,15 @@
+{
+  "contentsDeltaUri": "gs://vertex-vector-reviews-bucket",
+  "config": {
+    "dimensions": 100,
+    "approximateNeighborsCount": 150,
+    "distanceMeasureType": "DOT_PRODUCT_DISTANCE",
+    "shardSize": "SHARD_SIZE_SMALL",
+    "algorithm_config": {
+      "treeAhConfig": {
+        "leafNodeEmbeddingCount": 5000,
+        "fractionLeafNodesToSearch": 0.03
+      }
+    }
+  }
+}

@@ -16,7 +16,7 @@ class Config:
     PROJECT: str = os.getenv("VERTEX_PROJECT", os.getenv("PROJECT_ID"))
     LOCATION: str = os.getenv("VERTEX_LOCATION", "us-central1")
     EMBEDDING_MODEL: str = "gemini-embedding-001"
-    LLM_MODEL: str = "gemini-2.5-flash"
+    LLM_MODEL: str = "gemini-2.5-flash-lite"
     QUERY_PARSER_MODEL: str = "gemini-2.5-flash-lite"
     
     # --------------------------

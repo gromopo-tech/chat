@@ -32,17 +32,30 @@ def get_rag_response(user_query: str):
         search_kwargs={"filter": qdrant_filter, "k": 20}
     )
 
+    intent = parsed.get("intent", "summarize reviews")
+
     # Prompt template for RAG (can be customized)
-    prompt = PromptTemplate.from_template(
+    specific_prompt = PromptTemplate.from_template(
         """
-        Answer the question based on the following context:
+        {intent} based on the following reviews:
         {context}
         Question: {question}
+        The reviews have already been filtered to match the user's criteria:
+        {filter_dict}
+        """
+    )
+
+    general_prompt = PromptTemplate.from_template(
+        """
+        Answer the general question based on the following reviews, which have already been filtered to match the user's criteria:
+        {context}
+        Question: {question}
+        The reviews have already been filtered to match the user's criteria:
+        {filter_dict}
         """
     )
 
     embedding_text = parsed["query_embedding_text"]
-    intent = parsed.get("intent", "summarize reviews")
 
     # Retrieve context ONCE
     start = time()
@@ -57,16 +70,14 @@ def get_rag_response(user_query: str):
             "parsed_filter": filter_dict,
         }
 
-    # Compose the RAG chain using Runnable, but pass context directly
-    def context_lambda(x):
-        return context
-
     rag_chain = (
         RunnableMap({
-            "context": context_lambda,
+            "context": lambda _: context,
+            "intent": lambda _: intent,
             "question": lambda x: x["question"],
+            "filter_dict": lambda _: filter_dict,
         })
-        | prompt
+        | (general_prompt if intent == "general question" else specific_prompt)
         | llm
         | StrOutputParser()
     )

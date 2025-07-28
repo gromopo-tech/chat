@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from app.chains import get_rag_response, get_streaming_rag_response
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-from time import time
+import time
 import json
 
 
@@ -41,7 +41,6 @@ async def rag_query(request: QueryRequest):
 @app.post("/rag/streaming-query")
 async def rag_streaming_query(request: QueryRequest):
     """Streaming endpoint that returns chunks of the answer as they're generated."""
-    
     async def generate():
         try:
             # Send start of stream
@@ -61,6 +60,7 @@ async def rag_streaming_query(request: QueryRequest):
                     text = chunk["chunk"]
                     full_answer += text
                     yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
+                    time.sleep(.1)
                 
                 # If we have a complete answer in one go
                 if "answer" in chunk and chunk["answer"]:

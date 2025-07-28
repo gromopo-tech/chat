@@ -6,7 +6,7 @@ from app.config import Config
 from app.models import embeddings_model, llm
 from app.vectorstore import get_qdrant, build_qdrant_filter
 from app.query_parser import parse_query_with_llm
-from typing import AsyncIterator, Dict, Any, Tuple, List, Optional
+from typing import AsyncIterator, Dict, Any, Tuple, List
 
 
 vectorstore = QdrantVectorStore(
@@ -108,13 +108,20 @@ async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str,
             token = chunk.content
         else:
             token = str(chunk)
-
+            
         buffer += token
-
-        # Send larger, more readable chunks
-        if len(buffer) >= 5 or any(p in buffer for p in [".", "!", "?", "\n"]):
-            yield {"chunk": buffer}
-            buffer = ""
+        
+        # Send chunks of approximately 5 characters or a single word
+        while " " in buffer:
+            if " " in buffer:
+                # Split at the first space to send a complete word
+                word, buffer = buffer.split(" ", 1)
+                word += " "  # Add the space back
+                yield {"chunk": word}
+            else:
+                # If no space but buffer is long enough, send the first 5 characters
+                yield {"chunk": buffer[:5]}
+                buffer = buffer[5:]
 
     # Send any remaining text
     if buffer:

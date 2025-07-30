@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 
 
 def parse_query_with_llm(user_query: str) -> Dict[str, Any]:
-    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # to simulate streaming reviews we use the day after the most recent review (2025-05-25)
+    current_date = datetime(2025, 5, 25).strftime("%Y-%m-%d")
     prompt = QUERY_PARSER_PROMPT.format(
         user_query=user_query, current_date=current_date
     )

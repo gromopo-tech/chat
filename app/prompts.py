@@ -54,10 +54,8 @@ User query: "{user_query}"
 
 RESPONSE_PROMPT = PromptTemplate.from_template(
     """
-    You are talking to an owner/manager of Duck and Decanter, a sandwich shop in Phoenix, AZ, 
-    who is seeking insights to improve business.
+    You are talking to an owner of Duck and Decanter, a sandwich shop in Phoenix, AZ with 874 customer reviews.
     Please {intent} to answer the question: {question}, based on the following reviews: {context}.
     The reviews have already been filtered to match the user's criteria: {criteria}.
-    Please be concise and provide short specific examples/quotes from the reviews to support your answer when appropriate.
     """
 )

@@ -19,7 +19,6 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     context: List[str]
-    intent: Optional[str] = None
     parsed_filter: Optional[Dict[str, Any]] = None
 
 
@@ -33,7 +32,6 @@ async def rag_query(request: QueryRequest):
         return {
             "answer": "Error",
             "context": [str(e)],
-            "intent": None,
             "parsed_filter": None,
         }
 

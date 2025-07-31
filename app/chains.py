@@ -17,45 +17,87 @@ vectorstore = QdrantVectorStore(
 )
 
 
+def _get_k_value_for_query(user_query: str) -> int:
+    """Determine optimal k value based on query type."""
+    query_lower = user_query.lower()
+    
+    # For analytical queries that need comprehensive data - use high k
+    if any(phrase in query_lower for phrase in [
+        "most common", "most frequent", "trends", "patterns", 
+        "all complaints", "all praise", "summary", "analyze",
+        "what are the", "summarize", "overview", "how many"
+    ]):
+        return 1000  # Get most/all relevant reviews for comprehensive analysis
+    
+    # For comparison queries
+    if any(phrase in query_lower for phrase in [
+        "compare", "versus", "vs", "difference", "better", "worse"
+    ]):
+        return 100
+    
+    # For specific examples or particular issues
+    if any(phrase in query_lower for phrase in [
+        "example", "instance", "specific", "particular", "tell me about"
+    ]):
+        return 30  # Lower k for specific examples
+    
+    # Default for general queries
+    return 50
+
 def _prepare_query(user_query: str) -> Tuple[Dict, str, object]:
     """Common query preparation logic for both streaming and non-streaming RAG responses."""
     parsed = parse_query_with_llm(user_query)
     filter_dict = parsed.get("filter")
     qdrant_filter = build_qdrant_filter(filter_dict)
+    
+    # Dynamic k based on query type
+    k_value = _get_k_value_for_query(user_query)
+    print(f"Using k={k_value} for query: {user_query}")  # Debug
+    
     retriever = vectorstore.as_retriever(
-        search_kwargs={"filter": qdrant_filter, "k": 20}
+        search_kwargs={"filter": qdrant_filter, "k": k_value}
     )
 
-    intent = parsed.get("intent", "summarize reviews")
     embedding_text = parsed["query_embedding_text"]
     
-    return filter_dict, intent, embedding_text, retriever
+    return filter_dict, embedding_text, retriever
 
-def _rag_runnable(context: List[str], intent: str, filter_dict: Dict) -> RunnableMap:
+def _rag_runnable(context: List[str], filter_dict: Dict, review_count: int = None) -> RunnableMap:
     return RunnableMap(
         {
             "context": lambda _: "\n\n".join(context),
-            "intent": lambda _: intent,
             "criteria": lambda _: filter_dict,
+            "review_count": lambda _: review_count,
             "question": lambda x: x["question"],
-            }
-        )
+        }
+    )
 
 def get_rag_response(user_query: str):
-    filter_dict, intent, embedding_text, retriever = _prepare_query(user_query)
+    parsed = parse_query_with_llm(user_query)
+    filter_dict, embedding_text, retriever = _prepare_query(user_query)
+    if parsed.get("off_topic", False):
+        return {
+            "answer": "Sorry, I can't assist you yet with that. Currently I'm only able to help you "
+            "understand customer feedback for Duck and Decanter and improve business based on customer feedback. "
+            "Please ask me about customer reviews, complaints, praise, business insights, or suggestions for improvements.",
+            "context": [],
+            "parsed_filter": None,
+        }
 
     context_docs = retriever.invoke(embedding_text)
     context = [doc.page_content for doc in context_docs]
+    review_count = len(context)  # Count the reviews here
+    print(f"Retrieved {review_count} reviews")  # Debug
+    
     if not context or all(not c.strip() for c in context):
         return {
             "answer": "There are no reviews matching your query.",
             "context": [],
-            "intent": intent,
             "parsed_filter": filter_dict,
         }
 
     rag_chain = (
-        _rag_runnable(context, intent, filter_dict)
+        _rag_runnable(context, filter_dict, review_count)  # Pass the count
         | RESPONSE_PROMPT
         | llm
         | StrOutputParser()
@@ -65,22 +107,38 @@ def get_rag_response(user_query: str):
     return {
         "answer": answer,
         "context": context,
-        "intent": intent,
         "parsed_filter": filter_dict,
     }
 
 
 async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of get_rag_response that yields tokens as they're generated."""
-    filter_dict, intent, embedding_text, retriever = _prepare_query(user_query)
+    filter_dict, embedding_text, retriever = _prepare_query(user_query)
+    parsed = parse_query_with_llm(user_query)
+    if parsed.get("off_topic", False):
+        yield {
+            "answer": "Sorry, I can't assist you yet with that. Currently I'm only able to help you "
+            "understand customer feedback for Duck and Decanter and improve business based on customer feedback. "
+            "Please ask me about customer reviews, complaints, praise, business insights, or suggestions for improvements.",
+            "context": [],
+            "parsed_filter": None,
+            "done": True
+        }
+        return
+    print(f"Filter dict: {filter_dict}")  # Debug line
+    print(f"Embedding text: {embedding_text}")  # Debug line
 
     context_docs = await retriever.ainvoke(embedding_text)
     context = [doc.page_content for doc in context_docs]
+    review_count = len(context)  # Count the reviews here
+    print(f"Retrieved {review_count} reviews")  # Debug
+    print(f"Retrieved {len(context)} documents")  # Debug line
+    
+    print(f"Context: {context}")
     if not context or all(not c.strip() for c in context):
         yield {
             "answer": "There are no reviews matching your query.",
             "context": [],
-            "intent": intent,
             "parsed_filter": filter_dict,
             "done": True,  # Indicate this is the complete response
         }
@@ -90,20 +148,19 @@ async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str,
     yield {
         "metadata": {
             "context": context,
-            "intent": intent,
             "parsed_filter": filter_dict,
         }
     }
 
     # Now stream the answer in chunks
     streaming_rag_chain = (
-        _rag_runnable(context, intent, filter_dict)
+        _rag_runnable(context, filter_dict, review_count)
         | RESPONSE_PROMPT
         | llm
     )
 
     buffer = ""
-    async for chunk in streaming_rag_chain.astream({"question": embedding_text}):
+    async for chunk in streaming_rag_chain.astream({"question": user_query}):
         if hasattr(chunk, "content"):
             token = chunk.content
         else:

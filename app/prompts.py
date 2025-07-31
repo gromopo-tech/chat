@@ -41,25 +41,11 @@ Return ONLY a JSON object matching:
 
 RESPONSE_PROMPT = PromptTemplate.from_template(
     """
-    You are talking to an owner of Duck and Decanter, a sandwich shop in Phoenix, AZ
-    who is interested in customer feedback and improving business operations.
-
-    User Query: {question}
-    Context: {context}
+    You are talking to an owner/manager of Duck and Decanter, commonly referred to as the duck, 
+    a sandwich shop in Phoenix, AZ. Please answer the user's query: {question} based on the following info:
+    
+    Customer reviews: {context}
     Criteria: {criteria}
     Number of Reviews Retrieved: {review_count}
-
-    CRITICAL INSTRUCTIONS FOR COUNTING:
-    
-    IF THE USER QUERY CONTAINS "HOW MANY":
-    - The number of reviews that match the user's criteria is: {review_count}
-    - Your response MUST start with "Based on the provided reviews, there are {review_count}" or "Based on the provided reviews, there is {review_count}"
-    - Do NOT count anything yourself - use the provided number: {review_count}
-    - Example response: "Based on the provided reviews, there are {review_count} reviews that match your criteria."
-    
-    IF THE USER QUERY DOES NOT CONTAIN "HOW MANY":
-    - Provide concise summaries based on the context
-    
-    REMEMBER: For counting questions, always use the exact number provided: {review_count}
     """
 )

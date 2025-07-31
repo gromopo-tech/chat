@@ -4,7 +4,7 @@ from qdrant_client import models
 from tqdm import tqdm
 from app.config import Config
 from qdrant_client.models import VectorParams, Distance
-from app.models import embeddings_model
+from app.vertexai_models import embeddings_model
 from app.vectorstore import get_qdrant
 from datetime import datetime
 

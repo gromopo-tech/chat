@@ -3,7 +3,7 @@ from app.prompts import RESPONSE_PROMPT
 from langchain_core.output_parsers import StrOutputParser
 from langchain_qdrant import QdrantVectorStore
 from app.config import Config
-from app.models import embeddings_model, llm
+from app.vertexai_models import embeddings_model, llm
 from app.vectorstore import get_qdrant, build_qdrant_filter
 from app.query_parser import parse_query_with_llm
 from typing import AsyncIterator, Dict, Any, Tuple, List
@@ -86,8 +86,7 @@ def get_rag_response(user_query: str):
 
     context_docs = retriever.invoke(embedding_text)
     context = [doc.page_content for doc in context_docs]
-    review_count = len(context)  # Count the reviews here
-    print(f"Retrieved {review_count} reviews")  # Debug
+    review_count = len(context)
     
     if not context or all(not c.strip() for c in context):
         return {

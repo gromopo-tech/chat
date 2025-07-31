@@ -1,6 +1,6 @@
 import json
 from typing import Dict, Any
-from app.models import query_parser_llm
+from app.vertexai_models import query_parser_llm
 from app.prompts import QUERY_PARSER_PROMPT
 from datetime import datetime, timezone
 

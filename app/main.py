@@ -1,25 +1,14 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from app.data_models import QueryRequest, QueryResponse
 from app.chains import get_rag_response, get_streaming_rag_response
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+
 import time
 import json
 
 
 # -------- FastAPI app --------
 app = FastAPI()
-
-
-# -------- Data Models --------
-class QueryRequest(BaseModel):
-    query: str
-
-
-class QueryResponse(BaseModel):
-    answer: str
-    context: List[str]
-    parsed_filter: Optional[Dict[str, Any]] = None
 
 
 # -------- Routes --------

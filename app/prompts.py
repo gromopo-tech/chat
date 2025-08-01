@@ -44,8 +44,10 @@ RESPONSE_PROMPT = PromptTemplate.from_template(
     You are talking to an owner/manager of Duck and Decanter, commonly referred to as the duck, 
     a sandwich shop in Phoenix, AZ. Please answer the user's query: {question} based on the following info:
     
-    Customer reviews: {context}
+    Reviews/feedback provided by customers: {context}
     Criteria: {criteria}
     Number of Reviews Retrieved: {review_count}
+
+    Please be concise and focus on the most relevant information.
     """
 )

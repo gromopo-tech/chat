@@ -1,20 +1,11 @@
 from langchain_core.runnables import RunnableMap
 from app.prompts import RESPONSE_PROMPT
 from langchain_core.output_parsers import StrOutputParser
-from langchain_qdrant import QdrantVectorStore
-from app.config import Config
-from app.vertexai_models import embeddings_model, llm
-from app.vectorstore import get_qdrant, build_qdrant_filter
+from app.vertexai_models import llm
+from app.vectorstore import build_qdrant_filter
+from app.hybrid_retriever import create_hybrid_retriever
 from app.query_parser import parse_query_with_llm
 from typing import AsyncIterator, Dict, Any, Tuple, List
-
-
-vectorstore = QdrantVectorStore(
-    client=get_qdrant(),
-    collection_name=Config.COLLECTION_NAME,
-    embedding=embeddings_model,
-    content_payload_key="text",
-)
 
 
 def _get_k_value_for_query(user_query: str) -> int:
@@ -54,9 +45,8 @@ def _prepare_query(user_query: str) -> Tuple[Dict, str, object]:
     k_value = _get_k_value_for_query(user_query)
     print(f"Using k={k_value} for query: {user_query}")  # Debug
     
-    retriever = vectorstore.as_retriever(
-        search_kwargs={"filter": qdrant_filter, "k": k_value}
-    )
+    # Create hybrid retriever
+    retriever = create_hybrid_retriever(qdrant_filter=qdrant_filter, k=k_value)
 
     embedding_text = parsed["query_embedding_text"]
     
@@ -72,46 +62,8 @@ def _rag_runnable(context: List[str], filter_dict: Dict, review_count: int = Non
         }
     )
 
-def get_rag_response(user_query: str):
-    parsed = parse_query_with_llm(user_query)
-    filter_dict, embedding_text, retriever = _prepare_query(user_query)
-    if parsed.get("off_topic", False):
-        return {
-            "answer": "Sorry, I can't assist you yet with that. Currently I'm only able to help you "
-            "understand customer feedback for Duck and Decanter and improve business based on customer feedback. "
-            "Please ask me about customer reviews, complaints, praise, business insights, or suggestions for improvements.",
-            "context": [],
-            "parsed_filter": None,
-        }
-
-    context_docs = retriever.invoke(embedding_text)
-    context = [doc.page_content for doc in context_docs]
-    review_count = len(context)
-    
-    if not context or all(not c.strip() for c in context):
-        return {
-            "answer": "There are no reviews matching your query.",
-            "context": [],
-            "parsed_filter": filter_dict,
-        }
-
-    rag_chain = (
-        _rag_runnable(context, filter_dict, review_count)  # Pass the count
-        | RESPONSE_PROMPT
-        | llm
-        | StrOutputParser()
-    )
-
-    answer = rag_chain.invoke({"question": embedding_text})
-    return {
-        "answer": answer,
-        "context": context,
-        "parsed_filter": filter_dict,
-    }
-
-
 async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str, Any]]:
-    """Streaming version of get_rag_response that yields tokens as they're generated."""
+    """Streams tokens as they're generated."""
     filter_dict, embedding_text, retriever = _prepare_query(user_query)
     parsed = parse_query_with_llm(user_query)
     if parsed.get("off_topic", False):

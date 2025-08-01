@@ -10,7 +10,6 @@ class QueryRequest(BaseModel):
     session_id: Optional[str] = None
     chat_history: Optional[List[ChatMessage]] = []
 
-
 class QueryResponse(BaseModel):
     answer: str
     context: List[str]

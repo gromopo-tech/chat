@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from app.data_models import QueryRequest, QueryResponse
-from app.chains import get_rag_response, get_streaming_rag_response
+from app.data_models import QueryRequest
+from app.chains import get_streaming_rag_response
 
 import time
 import json
@@ -12,19 +12,6 @@ app = FastAPI()
 
 
 # -------- Routes --------
-@app.post("/rag/query", response_model=QueryResponse)
-async def rag_query(request: QueryRequest):
-    try:
-        result = get_rag_response(request.query)
-        return result
-    except Exception as e:
-        return {
-            "answer": "Error",
-            "context": [str(e)],
-            "parsed_filter": None,
-        }
-
-
 @app.post("/rag/streaming-query")
 async def rag_streaming_query(request: QueryRequest):
     """Streaming endpoint that returns chunks of the answer as they're generated."""

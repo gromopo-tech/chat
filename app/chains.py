@@ -1,6 +1,6 @@
 from langchain_core.runnables import RunnableMap
 from app.prompts import RESPONSE_PROMPT
-from app.vertexai_models import get_llm_for_query
+from app.vertexai_models import default_llm, get_llm_for_query
 from app.vectorstore import build_qdrant_filter
 from app.hybrid_retriever import create_hybrid_retriever
 from app.query_parser import parse_query_with_llm
@@ -106,7 +106,7 @@ async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str,
     streaming_rag_chain = (
         _rag_runnable(context, filter_dict, review_count)
         | RESPONSE_PROMPT
-        | get_llm_for_query(user_query)
+        | default_llm
     )
 
     buffer = ""

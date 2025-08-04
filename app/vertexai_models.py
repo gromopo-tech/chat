@@ -6,8 +6,15 @@ from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
 # Initialize Vertex AI
 vertexai.init(project=Config.PROJECT, location=Config.LOCATION)
 
-llm = ChatVertexAI(
-    model=Config.LLM_MODEL,
+default_llm = ChatVertexAI(
+    model=Config.DEFAULT_LLM_MODEL,
+    project=Config.PROJECT,
+    location=Config.LOCATION,
+)
+
+# More powerful model for complex tasks like recommendations
+thinking_llm = ChatVertexAI(
+    model=Config.THINKING_LLM_MODEL,
     project=Config.PROJECT,
     location=Config.LOCATION,
 )
@@ -17,6 +24,27 @@ query_parser_llm = ChatVertexAI(
     project=Config.PROJECT,
     location=Config.LOCATION,
 )
+
+def get_llm_for_query(user_query: str) -> ChatVertexAI:
+    """Select the appropriate LLM based on the query type."""
+    query_lower = user_query.lower()
+    
+    # Use pro model for complex analytical tasks
+    pro_keywords = [
+        "recommend", "recommendation", "recommendations",
+        "suggest", "suggestion", "suggestions",
+        "advice", "improve", "improvement", "improvements", 
+        "strategy", "strategies", "solution", "solutions",
+        "action", "actions", "plan", "planning",
+        "optimize", "optimization", "enhance", "enhancement",
+        "best", "better", "ideal", "perfect", "optimal"
+    ]
+    
+    if any(keyword in query_lower for keyword in pro_keywords):
+        print(f"Using Pro model for query: {user_query[:50]}...")
+        return thinking_llm
+    else:
+        return default_llm
 
 # Use the native Vertex AI model for hybrid embeddings
 embeddings_model = TextEmbeddingModel.from_pretrained(Config.EMBEDDING_MODEL)

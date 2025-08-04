@@ -3,8 +3,8 @@ from pathlib import Path
 from qdrant_client import models
 from tqdm import tqdm
 from app.config import Config
-from qdrant_client.models import VectorParams, Distance
-from app.vertexai_models import embeddings_model
+from qdrant_client.models import VectorParams, Distance, SparseVectorParams, SparseIndexParams
+from app.vertexai_models import get_hybrid_embeddings
 from app.vectorstore import get_qdrant
 from datetime import datetime
 
@@ -36,15 +36,14 @@ def main():
         [
             f
             for f in reviews_dir.iterdir()
-            if f.is_file() and f.name.startswith("reviews-")
+            if f.is_file() and f.name.startswith("reviews")
         ]
     )
     if not review_files:
-        print(f"No files starting with 'reviews-' found in {reviews_dir}")
+        print(f"No files starting with 'reviews' found in {reviews_dir}")
         return
 
     all_points = []
-    total_reviews = 0
     idx = 0
     for review_file in review_files:
         with open(review_file, "r") as f:
@@ -54,7 +53,12 @@ def main():
             if "comment" not in review or "name" not in review:
                 continue
             text = review["comment"]
-            embedding = embeddings_model.embed_query(text)
+            
+            # Get hybrid embeddings (dense and sparse)
+            embeddings = get_hybrid_embeddings(text)
+            dense_vector = embeddings['dense']
+            sparse_vector = embeddings['sparse']
+            
             # Map starRating (string) to int
             star_map = {"ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5}
             rating = star_map.get(review.get("starRating", ""), None)
@@ -64,10 +68,16 @@ def main():
             )
             author = review.get("reviewer", {}).get("displayName", "Unknown")
             review_id = review["name"].split("/")[-1]
+            
+            # Create vectors dict for both dense and sparse
+            vectors = {"dense": dense_vector}
+            if sparse_vector is not None:
+                vectors["sparse"] = sparse_vector
+            
             all_points.append(
                 models.PointStruct(
                     id=idx,
-                    vector=embedding,
+                    vector=vectors,
                     payload={
                         "text": text,
                         "rating": rating,
@@ -78,14 +88,28 @@ def main():
                 )
             )
             idx += 1
-        total_reviews += len(reviews)
 
+    total_reviews = len(all_points)
     qdrant = get_qdrant()
     if qdrant.collection_exists(collection_name=Config.COLLECTION_NAME):
         qdrant.delete_collection(collection_name=Config.COLLECTION_NAME)
+    
+    # Create vectors config for both dense and sparse vectors
+    vectors_config = {
+        "dense": VectorParams(size=Config.DENSE_VECTOR_SIZE, distance=Distance.COSINE),
+    }
+    
+    # Add sparse vector config if we have sparse vectors
+    if any(point.vector.get("sparse") is not None for point in all_points if isinstance(point.vector, dict)):
+        vectors_config["sparse"] = SparseVectorParams(
+            index=SparseIndexParams(
+                on_disk=False,  # Keep in memory for better performance
+            )
+        )
+    
     qdrant.create_collection(
         collection_name=Config.COLLECTION_NAME,
-        vectors_config=VectorParams(size=Config.VECTOR_SIZE, distance=Distance.COSINE),
+        vectors_config=vectors_config,
         optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
     )
     qdrant.upsert(collection_name=Config.COLLECTION_NAME, points=all_points)

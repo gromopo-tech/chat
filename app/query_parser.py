@@ -2,7 +2,7 @@ import json
 from typing import Dict, Any
 from app.vertexai_models import query_parser_llm
 from app.prompts import QUERY_PARSER_PROMPT
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 def parse_query_with_llm(user_query: str) -> Dict[str, Any]:

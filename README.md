@@ -63,28 +63,12 @@ python -m scripts.embed_reviews --dir reviews/
 ### 8. **Test the API**
 Send a POST request to the RAG endpoint:
 ```sh
-curl -X POST "http://localhost:8080/rag/query" \
+curl -X POST "http://localhost:8080/rag/streaming-query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What do people like about this place?"}'
+  -d '{"query": "What do people like about the Duck?"}'
 ```
 
-- To extract just the answer (requires `jq`):
-  ```sh
-  ... | jq -r '.answer'
-  ```
-
-You should see a response like this:
-
-Based on the provided reviews, here are the things people like about this place:
-
-*   **The Food and Drinks:** People praise the great taste and good quality of the ingredients. The menu is described as varied, with unique sandwiches as well as classics. One person called their sandwich "glorious" and the iced tea "restorative." The food is also seen as comforting.
-
-*   **The Atmosphere and Ambiance:** The restaurant is described as a "local gem" with a cozy, iconic, and unfussy atmosphere. Reviewers enjoyed the interesting building, the great live music, and the peaceful patio for outdoor dining.
-
-*   **The Staff:** The staff is noted as being peaceful, cheery, and helpful.
-
-*   **Other Features:** The shop also offers a variety of other items for sale, such as cheeses, sausages, breads, and wines. The bathrooms were also noted to be clean.
-
+You should see the response streaming.
 ---
 
 ## 🐳 Using Docker Compose for App and Qdrant

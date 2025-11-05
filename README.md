@@ -1,13 +1,21 @@
 # Review based RAG LLM FastAPI App
 
-This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. \
-It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
+## Live Demo
+You can explore the live app at https://gromopo.com/signin
+Use these demo credentials:  
+Email: demos+ragllm@gromopo.com
+Password: RAGLLMdemo123
 
-**Note:** This project was developed and tested with Python 3.13.5. Other Python 3.13.x versions should work, but earlier versions may not be compatible.
+Reviews in the demo are used with permission from the owner of the Duck and Decanter. All personally identifying information has been removed from reviews.
 
 ---
 
 ## 🚀 Getting Started (Local Development)
+
+This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. \
+It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
+
+**Note:** This project was developed and tested with Python 3.13.5. Other Python 3.13.x versions should work, but earlier versions may not be compatible.
 
 ### 1. **Clone the Repository**
 ```sh

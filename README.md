@@ -113,7 +113,6 @@ docker-compose logs -f
   - On Cloud Run, use the default service account or set up Workload Identity.
 - **No context returned:**
   - Make sure you ran the embedding script after Qdrant was started.
-  # No need to specify `place_id` in your query; all reviews are for the same place.
 
 ---
 

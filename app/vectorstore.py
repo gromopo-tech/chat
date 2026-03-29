@@ -43,7 +43,6 @@ def hybrid_search(query_text: str, qdrant_filter: models.Filter = None, k: int =
     # Get query embeddings
     query_embeddings = get_query_embeddings(query_text)
     dense_vector = query_embeddings['dense']
-    sparse_vector = query_embeddings['sparse']
     
     # For now, only use dense search since sparse embeddings may not be available
     # with the current text-embedding-004 model
@@ -89,50 +88,3 @@ def hybrid_search(query_text: str, qdrant_filter: models.Filter = None, k: int =
         except Exception as fallback_error:
             print(f"All search methods failed: {fallback_error}")
             return []
-
-
-def _combine_search_results(search_results: List[List], k: int) -> List[Dict[str, Any]]:
-    """Combine dense and sparse search results using weighted scoring."""
-    dense_results = search_results[0] if len(search_results) > 0 else []
-    sparse_results = search_results[1] if len(search_results) > 1 else []
-    
-    # Create a mapping of document ID to combined score
-    combined_scores = {}
-    
-    # Process dense results
-    for result in dense_results:
-        doc_id = result.id
-        combined_scores[doc_id] = {
-            "payload": result.payload,
-            "dense_score": result.score,
-            "sparse_score": 0.0,
-            "combined_score": result.score * Config.DENSE_WEIGHT
-        }
-    
-    # Process sparse results
-    for result in sparse_results:
-        doc_id = result.id
-        if doc_id in combined_scores:
-            # Update existing entry
-            combined_scores[doc_id]["sparse_score"] = result.score
-            combined_scores[doc_id]["combined_score"] = (
-                combined_scores[doc_id]["dense_score"] * Config.DENSE_WEIGHT +
-                result.score * Config.SPARSE_WEIGHT
-            )
-        else:
-            # New entry from sparse only
-            combined_scores[doc_id] = {
-                "payload": result.payload,
-                "dense_score": 0.0,
-                "sparse_score": result.score,
-                "combined_score": result.score * Config.SPARSE_WEIGHT
-            }
-    
-    # Sort by combined score and return top k
-    sorted_results = sorted(
-        combined_scores.values(),
-        key=lambda x: x["combined_score"],
-        reverse=True
-    )
-    
-    return [{"payload": result["payload"], "score": result["combined_score"]} for result in sorted_results[:k]]

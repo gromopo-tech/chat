@@ -1,9 +1,16 @@
+import time
+from collections.abc import AsyncIterator
+from typing import Any
+
+import structlog
 from langchain_core.runnables import RunnableMap
+
 from app.prompts import RESPONSE_PROMPT
-from app.vertexai_models import default_llm, get_llm_for_query
-from app.vectorstore import build_qdrant_filter, create_dense_retriever
 from app.query_parser import parse_query_with_llm
-from typing import AsyncIterator, Dict, Any, Tuple, List
+from app.vectorstore import build_qdrant_filter, create_dense_retriever
+from app.vertexai_models import default_llm
+
+log = structlog.get_logger(__name__)
 
 
 def _get_k_value_for_query(user_query: str) -> int:
@@ -33,15 +40,17 @@ def _get_k_value_for_query(user_query: str) -> int:
     # Default for general queries
     return 50
 
-def _prepare_query(user_query: str) -> Tuple[Dict, str, object]:
+def _prepare_query(user_query: str, business_id: str | None = None) -> tuple[dict, str, object]:
     """Common query preparation logic for both streaming and non-streaming RAG responses."""
+    t0 = time.monotonic()
     parsed = parse_query_with_llm(user_query)
     filter_dict = parsed.get("filter")
-    qdrant_filter = build_qdrant_filter(filter_dict)
+    qdrant_filter = build_qdrant_filter(filter_dict, business_id=business_id)
     
     # Dynamic k based on query type
     k_value = _get_k_value_for_query(user_query)
-    print(f"Using k={k_value} for query: {user_query}")  # Debug
+    log.info("query_prepared", k=k_value, business_id=business_id, filter=filter_dict,
+             parse_latency_ms=round((time.monotonic() - t0) * 1000, 1))
     
     # Create dense retriever
     retriever = create_dense_retriever(qdrant_filter=qdrant_filter, k=k_value)
@@ -50,7 +59,7 @@ def _prepare_query(user_query: str) -> Tuple[Dict, str, object]:
     
     return filter_dict, embedding_text, retriever
 
-def _rag_runnable(context: List[str], filter_dict: Dict, review_count: int = None) -> RunnableMap:
+def _rag_runnable(context: list[str], filter_dict: dict, review_count: int = None) -> RunnableMap:
     return RunnableMap(
         {
             "context": lambda _: "\n\n".join(context),
@@ -60,9 +69,9 @@ def _rag_runnable(context: List[str], filter_dict: Dict, review_count: int = Non
         }
     )
 
-async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str, Any]]:
+async def get_streaming_rag_response(user_query: str, business_id: str | None = None) -> AsyncIterator[dict[str, Any]]:
     """Streams tokens as they're generated."""
-    filter_dict, embedding_text, retriever = _prepare_query(user_query)
+    filter_dict, embedding_text, retriever = _prepare_query(user_query, business_id=business_id)
     parsed = parse_query_with_llm(user_query)
     if parsed.get("off_topic", False):
         yield {
@@ -74,16 +83,12 @@ async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str,
             "done": True
         }
         return
-    print(f"Filter dict: {filter_dict}")  # Debug line
-    print(f"Embedding text: {embedding_text}")  # Debug line
-
+    t0 = time.monotonic()
     context_docs = await retriever.ainvoke(embedding_text)
+    retrieval_ms = round((time.monotonic() - t0) * 1000, 1)
     context = [doc.page_content for doc in context_docs]
-    review_count = len(context)  # Count the reviews here
-    print(f"Retrieved {review_count} reviews")  # Debug
-    print(f"Retrieved {len(context)} documents")  # Debug line
-    
-    print(f"Context: {context}")
+    review_count = len(context)
+    log.info("retrieval", k=review_count, business_id=business_id, latency_ms=retrieval_ms)
     if not context or all(not c.strip() for c in context):
         yield {
             "answer": "There are no reviews matching your query.",
@@ -102,6 +107,7 @@ async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str,
     }
 
     # Now stream the answer in chunks
+    llm_t0 = time.monotonic()
     streaming_rag_chain = (
         _rag_runnable(context, filter_dict, review_count)
         | RESPONSE_PROMPT
@@ -132,6 +138,9 @@ async def get_streaming_rag_response(user_query: str) -> AsyncIterator[Dict[str,
     # Send any remaining text
     if buffer:
         yield {"chunk": buffer}
+
+    log.info("llm_call", model=default_llm.model_name,
+             latency_ms=round((time.monotonic() - llm_t0) * 1000, 1))
 
     # Send final message indicating completion
     yield {"done": True}

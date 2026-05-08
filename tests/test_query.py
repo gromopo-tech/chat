@@ -1,6 +1,6 @@
-from unittest.mock import patch, MagicMock
-from app.main import app
-from app.data_models import QueryRequest, ChatMessage
+from unittest.mock import MagicMock, patch
+
+from app.data_models import ChatMessage, QueryRequest
 
 
 @patch("app.query_parser.query_parser_llm")
@@ -25,7 +25,7 @@ def test_parse_query_with_llm(mock_llm):
     user_query = "What do people dislike about the service in the last month?"
     parsed = parse_query_with_llm(user_query)
     
-    assert parsed["off_topic"] == False
+    assert not parsed["off_topic"]
     assert "complaints about service" in parsed["query_embedding_text"]
     assert parsed["filter"]["rating"]["$in"] == [1, 2, 3]
     assert "2024-05-01T00:00:00" in parsed["filter"]["createTime"]["$gte"]
@@ -84,7 +84,7 @@ def test_prepare_query(mock_parse, mock_retriever):
     mock_retriever_instance = MagicMock()
     mock_retriever.return_value = mock_retriever_instance
     
-    filter_dict, embedding_text, retriever = _prepare_query("test query")
+    filter_dict, embedding_text, retriever = _prepare_query("test query", business_id="biz_001")
     
     assert filter_dict == {"rating": {"$in": [1, 2, 3]}}
     assert embedding_text == "test query"
@@ -102,7 +102,12 @@ def test_query_request_model():
     request = QueryRequest(query="test query")
     assert request.query == "test query"
     assert request.session_id is None
+    assert request.business_id is None
     assert request.chat_history == []
+    
+    # Test request with business_id
+    request = QueryRequest(query="show reviews", business_id="biz_001")
+    assert request.business_id == "biz_001"
     
     # Test request with chat history
     chat_history = [ChatMessage(human="Hi", ai="Hello")]

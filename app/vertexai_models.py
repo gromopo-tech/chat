@@ -1,7 +1,8 @@
 import vertexai
-from app.config import Config
-from vertexai.language_models import TextEmbeddingModel
 from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
+from vertexai.language_models import TextEmbeddingModel
+
+from app.config import Config
 
 # Initialize Vertex AI
 vertexai.init(project=Config.PROJECT, location=Config.LOCATION)
@@ -47,20 +48,34 @@ def get_llm_for_query(user_query: str) -> ChatVertexAI:
         return default_llm
 
 # Use the native Vertex AI model for hybrid embeddings
-embeddings_model = TextEmbeddingModel.from_pretrained(Config.EMBEDDING_MODEL)
+# Lazily initialized — avoids GCP auth at import time so unit tests can run
+# without credentials. Call _get_embeddings_model() instead of accessing these directly.
+_embeddings_model: "TextEmbeddingModel | None" = None
+_legacy_embeddings_model: "VertexAIEmbeddings | None" = None
 
-# Legacy embedding model for compatibility (if needed)
-legacy_embeddings_model = VertexAIEmbeddings(
-    model_name=Config.EMBEDDING_MODEL,
-    project=Config.PROJECT,
-    location=Config.LOCATION,
-)
+
+def _get_embeddings_model() -> "TextEmbeddingModel":
+    global _embeddings_model
+    if _embeddings_model is None:
+        _embeddings_model = TextEmbeddingModel.from_pretrained(Config.EMBEDDING_MODEL)
+    return _embeddings_model
+
+
+def _get_legacy_embeddings_model() -> "VertexAIEmbeddings":
+    global _legacy_embeddings_model
+    if _legacy_embeddings_model is None:
+        _legacy_embeddings_model = VertexAIEmbeddings(
+            model_name=Config.EMBEDDING_MODEL,
+            project=Config.PROJECT,
+            location=Config.LOCATION,
+        )
+    return _legacy_embeddings_model
 
 def get_hybrid_embeddings(text: str):
     """Get both dense and sparse embeddings for hybrid search."""
     try:
         # Get embeddings without task_type since it's not supported
-        embeddings = embeddings_model.get_embeddings(
+        embeddings = _get_embeddings_model().get_embeddings(
             [text],
             output_dimensionality=Config.DENSE_VECTOR_SIZE
         )
@@ -86,7 +101,7 @@ def get_hybrid_embeddings(text: str):
         print(f"Error getting hybrid embeddings: {e}")
         # Fallback to legacy embeddings model
         try:
-            dense_vector = legacy_embeddings_model.embed_query(text)
+            dense_vector = _get_legacy_embeddings_model().embed_query(text)
             return {
                 'dense': dense_vector,
                 'sparse': None
@@ -98,7 +113,7 @@ def get_hybrid_embeddings(text: str):
 def get_query_embeddings(text: str):
     """Get embeddings optimized for query."""
     try:
-        embeddings = embeddings_model.get_embeddings(
+        embeddings = _get_embeddings_model().get_embeddings(
             [text],
             output_dimensionality=Config.DENSE_VECTOR_SIZE
         )
@@ -122,7 +137,7 @@ def get_query_embeddings(text: str):
         print(f"Error getting query embeddings: {e}")
         # Fallback to legacy embeddings model
         try:
-            dense_vector = legacy_embeddings_model.embed_query(text)
+            dense_vector = _get_legacy_embeddings_model().embed_query(text)
             return {
                 'dense': dense_vector,
                 'sparse': None

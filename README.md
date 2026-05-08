@@ -1,5 +1,7 @@
 # chat — Multi-Source RAG API for Restaurant Review Insights
 
+[![CI](https://github.com/gromopo-tech/chat/actions/workflows/ci.yml/badge.svg)](https://github.com/gromopo-tech/chat/actions/workflows/ci.yml)
+
 Multi-tenant RAG service that unifies owner-uploaded Google review exports and on-chain Solana review data behind a pluggable `ReviewSource` interface, with per-business payload filtering for tenant isolation. Built with FastAPI, Vertex AI, and Qdrant. Part of the [Gromopo](https://github.com/gromopo-tech/gromopo) system.
 
 ---

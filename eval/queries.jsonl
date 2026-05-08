@@ -1,0 +1,20 @@
+{"query": "What do customers love most about the food?", "expected_keywords": ["duck", "sandwich", "food", "favorite", "great"], "business_id": "demo"}
+{"query": "What are the most common complaints?", "expected_keywords": ["overpriced", "slow", "wait", "service", "long"], "business_id": "demo"}
+{"query": "What do reviews say about the service?", "expected_keywords": ["service", "staff", "friendly", "slow", "wait"], "business_id": "demo"}
+{"query": "Are there any complaints about prices or value?", "expected_keywords": ["overpriced", "price", "expensive", "value", "affordable"], "business_id": "demo"}
+{"query": "What do people say about the atmosphere or ambiance?", "expected_keywords": ["atmosphere", "music", "live", "ambiance", "vibe", "cozy"], "business_id": "demo"}
+{"query": "Tell me about a specific positive experience a customer had.", "expected_keywords": ["love", "amazing", "great", "best", "favorite", "excellent"], "business_id": "demo"}
+{"query": "What items on the menu are mentioned most often?", "expected_keywords": ["duck", "sandwich", "Ruben", "food", "menu"], "business_id": "demo"}
+{"query": "Are customers likely to return or recommend this place?", "expected_keywords": ["return", "recommend", "again", "ritual", "back", "invite"], "business_id": "demo"}
+{"query": "What do 5-star reviews say?", "expected_keywords": ["amazing", "love", "great", "excellent", "best", "favorite"], "business_id": "demo"}
+{"query": "What do 1 or 2 star reviews complain about?", "expected_keywords": ["bad", "poor", "disappointing", "slow", "wrong", "rude", "never again"], "business_id": "demo"}
+{"query": "What do customers say about delivery or takeout?", "expected_keywords": ["deliver", "delivery", "takeout", "location", "order"], "business_id": "demo"}
+{"query": "Are there any reviews mentioning music or entertainment?", "expected_keywords": ["music", "live", "entertainment", "band"], "business_id": "demo"}
+{"query": "What improvements do customers suggest?", "expected_keywords": ["improve", "better", "wish", "suggest", "would be", "if only"], "business_id": "demo"}
+{"query": "How do customers describe the bread or baked goods?", "expected_keywords": ["bread", "baked", "fresh", "bakery"], "business_id": "demo"}
+{"query": "What do customers say about the overall experience compared to other restaurants?", "expected_keywords": ["best", "better", "compare", "other", "anywhere", "nowhere"], "business_id": "demo"}
+{"query": "Are there reviews from customers who come regularly?", "expected_keywords": ["ritual", "regular", "always", "every", "week", "Sunday"], "business_id": "demo"}
+{"query": "What do customers say about the tea or drinks?", "expected_keywords": ["tea", "drink", "coffee", "beer", "beverage"], "business_id": "demo"}
+{"query": "What is the most recent negative feedback?", "expected_keywords": ["bad", "disappointed", "poor", "wrong", "rude", "never"], "business_id": "demo"}
+{"query": "Do any reviews mention Comic Sans or design issues?", "expected_keywords": ["Comic Sans", "menu", "font", "design"], "business_id": "demo"}
+{"query": "Summarize the overall customer sentiment.", "expected_keywords": ["overall", "positive", "great", "food", "love", "recommend"], "business_id": "demo"}

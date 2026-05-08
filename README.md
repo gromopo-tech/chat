@@ -108,7 +108,14 @@ Expected output:
 ✅ Inserted 14 reviews into collection 'reviews'.
 ```
 
-### 7. Query the API
+### 7. Run the tests
+
+```sh
+pip install -r requirements-dev.txt
+python3 -m pytest tests/
+```
+
+### 8. Query the API
 
 ```sh
 curl -X POST "http://localhost:8080/rag/streaming-query" \

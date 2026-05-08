@@ -1,8 +1,7 @@
 from langchain_core.runnables import RunnableMap
 from app.prompts import RESPONSE_PROMPT
 from app.vertexai_models import default_llm, get_llm_for_query
-from app.vectorstore import build_qdrant_filter
-from app.hybrid_retriever import create_hybrid_retriever
+from app.vectorstore import build_qdrant_filter, create_dense_retriever
 from app.query_parser import parse_query_with_llm
 from typing import AsyncIterator, Dict, Any, Tuple, List
 
@@ -44,8 +43,8 @@ def _prepare_query(user_query: str) -> Tuple[Dict, str, object]:
     k_value = _get_k_value_for_query(user_query)
     print(f"Using k={k_value} for query: {user_query}")  # Debug
     
-    # Create hybrid retriever
-    retriever = create_hybrid_retriever(qdrant_filter=qdrant_filter, k=k_value)
+    # Create dense retriever
+    retriever = create_dense_retriever(qdrant_filter=qdrant_filter, k=k_value)
 
     embedding_text = parsed["query_embedding_text"]
     

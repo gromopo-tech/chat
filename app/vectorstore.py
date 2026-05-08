@@ -1,8 +1,13 @@
+import asyncio
 from qdrant_client import QdrantClient, models
 from app.config import Config
 from app.utils import iso8601_to_timestamp
 from app.vertexai_models import get_query_embeddings
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from langchain_core.retrievers import BaseRetriever
+from langchain_core.documents import Document
+from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
+from pydantic import ConfigDict
 
 
 def get_qdrant():
@@ -88,3 +93,33 @@ def hybrid_search(query_text: str, qdrant_filter: models.Filter = None, k: int =
         except Exception as fallback_error:
             print(f"All search methods failed: {fallback_error}")
             return []
+
+
+class _DenseRetriever(BaseRetriever):
+    """LangChain-compatible retriever backed by Qdrant dense-vector search."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    qdrant_filter: Optional[models.Filter] = None
+    k: int = 20
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+    ) -> List[Document]:
+        results = hybrid_search(query, self.qdrant_filter, self.k)
+        return [
+            Document(page_content=r["payload"]["text"], metadata=r["payload"])
+            for r in results
+        ]
+
+    async def _aget_relevant_documents(self, query: str, *, run_manager) -> List[Document]:
+        results = await asyncio.to_thread(hybrid_search, query, self.qdrant_filter, self.k)
+        return [
+            Document(page_content=r["payload"]["text"], metadata=r["payload"])
+            for r in results
+        ]
+
+
+def create_dense_retriever(qdrant_filter: Optional[models.Filter] = None, k: int = 20) -> _DenseRetriever:
+    """Return a LangChain retriever using dense Qdrant search."""
+    return _DenseRetriever(qdrant_filter=qdrant_filter, k=k)

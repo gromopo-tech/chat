@@ -67,7 +67,7 @@ def test_get_k_value_for_query():
     assert _get_k_value_for_query("Random query") == 50
 
 
-@patch("app.chains.create_hybrid_retriever")
+@patch("app.chains.create_dense_retriever")
 @patch("app.chains.parse_query_with_llm")
 def test_prepare_query(mock_parse, mock_retriever):
     """Test query preparation logic."""

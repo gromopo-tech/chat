@@ -1,14 +1,15 @@
-import json
-from pathlib import Path
-from qdrant_client import models
-from tqdm import tqdm
-from app.config import Config
-from qdrant_client.models import VectorParams, Distance, SparseVectorParams, SparseIndexParams
-from app.vertexai_models import get_hybrid_embeddings
-from app.vectorstore import get_qdrant
-from datetime import datetime
-
 import argparse
+import json
+from datetime import datetime
+from pathlib import Path
+
+from qdrant_client import models
+from qdrant_client.models import Distance, SparseIndexParams, SparseVectorParams, VectorParams
+from tqdm import tqdm
+
+from app.config import Config
+from app.vectorstore import get_qdrant
+from app.vertexai_models import get_hybrid_embeddings
 
 
 def parse_args():
@@ -46,7 +47,7 @@ def main():
     all_points = []
     idx = 0
     for review_file in review_files:
-        with open(review_file, "r") as f:
+        with open(review_file) as f:
             reviews = json.load(f)["reviews"]
         print(f"🧠 Embedding {len(reviews)} reviews from {review_file.name}...")
         for review in tqdm(reviews, desc=review_file.name):

@@ -1,11 +1,12 @@
 import json
-from typing import Dict, Any
-from app.vertexai_models import query_parser_llm
-from app.prompts import QUERY_PARSER_PROMPT
 from datetime import datetime
+from typing import Any
+
+from app.prompts import QUERY_PARSER_PROMPT
+from app.vertexai_models import query_parser_llm
 
 
-def parse_query_with_llm(user_query: str) -> Dict[str, Any]:
+def parse_query_with_llm(user_query: str) -> dict[str, Any]:
     # to simulate streaming reviews we use the day after the most recent review (2025-05-25)
     current_date = datetime(2025, 5, 25).strftime("%Y-%m-%d")
     prompt = QUERY_PARSER_PROMPT.format(

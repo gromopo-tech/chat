@@ -1,83 +1,167 @@
-# Review based RAG LLM FastAPI App
+# chat — Multi-Source RAG API for Restaurant Review Insights
 
-## Live Demo
-You can explore the live app at https://gromopo.com/signin
-Use these demo credentials:  
-Email: demos+ragllm@gromopo.com
-Password: RAGLLMdemo123
-
-Reviews in the demo are used with permission from the owner of the Duck and Decanter. All personally identifying information has been removed from reviews.
+Multi-tenant RAG service that unifies owner-uploaded Google review exports and on-chain Solana review data behind a pluggable `ReviewSource` interface, with per-business payload filtering for tenant isolation. Built with FastAPI, Vertex AI, and Qdrant. Part of the [Gromopo](https://github.com/gromopo-tech/gromopo) system.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## Architecture
 
-This project is a Retrieval-Augmented Generation (RAG) API using FastAPI, Qdrant (vector database), and Google Vertex AI for embeddings and LLM. \
-It supports both local development (with Docker Compose) and production (with Qdrant Cloud).
+```mermaid
+flowchart TD
+    A([Owner uploads<br/>Google Takeout export<br/>via Gromopo dashboard]) --> C
+    B([Customer submits<br/>post-order review<br/>via feedbites program]) --> C
+    C[ReviewSource interface<br/>app/ingestion/] --> D[Vertex AI<br/>text-embedding-004<br/>768-dim dense vectors]
+    D --> E[(Qdrant<br/>multi-tenant collection<br/>business_id payload filter)]
+    E --> F[FastAPI<br/>POST /rag/streaming-query]
+    F --> G[query_parser<br/>LLM-driven filter extraction<br/>rating · time · topic]
+    G --> H[Dense retriever<br/>top-k by cosine similarity]
+    H --> I[Vertex AI<br/>gemini-2.5-flash-lite<br/>or gemini-2.5-pro]
+    I --> J([Streamed SSE response<br/>to owner dashboard])
+```
 
-**Note:** This project was developed and tested with Python 3.13.5. Other Python 3.13.x versions should work, but earlier versions may not be compatible.
+---
 
-### 1. **Clone the Repository**
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Python 3.13 |
+| API framework | FastAPI + Uvicorn |
+| LLM | Vertex AI `gemini-2.5-flash-lite` (default), `gemini-2.5-pro` (complex queries) |
+| Embeddings | Vertex AI `text-embedding-004` (768-dim) |
+| Vector DB | Qdrant (gRPC, named dense vectors, payload filtering) |
+| Orchestration | LangChain (retriever interface, prompt templates, runnable chains) |
+| Ingestion | Pluggable `ReviewSource` — Google Takeout JSON + on-chain Solana (anchorpy) |
+| Deploy target | Docker / Cloud Run |
+
+---
+
+## Repo Layout
+
+```
+app/              FastAPI application — chains, query parser, vectorstore, models, prompts
+app/ingestion/    Pluggable ReviewSource interface + Google Takeout and on-chain Solana sources
+scripts/          Ingestion runner CLI (embed_reviews.py)
+eval/             Recall@k eval harness with ground-truth query set
+reviews/          Sample Google Business Profile export (Duck and Decanter)
+tests/            Unit tests (pytest) — query parsing, filter building, ingestion sources
+```
+
+---
+
+## Local Development
+
+> Requires Python 3.13, Docker, and a GCP project with Vertex AI API enabled.
+
+### 1. Clone
+
 ```sh
 git clone https://github.com/gromopo-tech/chat.git
 cd chat
 ```
 
-### 2. **Set Up Google Application Default Credentials**
-- Make sure you have Vertex AI API enabled and run:
-  ```sh
-  gcloud auth application-default login
-  ```
-- This creates the ADC file at `~/.config/gcloud/application_default_credentials.json`.
+### 2. Authenticate with GCP
 
-### 3. **Set Environment Variables**
 ```sh
-export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json
-export VERTEX_LOCATION=<gcp-region-associated-with-vertex-ai-api-credentials>
-export VERTEX_PROJECT=<gcp-project-id-associated-with-vertex-ai-api-credentials>
+gcloud auth application-default login
 ```
 
-### 4. **Start Qdrant and FastAPI with Docker Compose**
-This will start a persistent Qdrant instance for local development.
+This creates the ADC file at `~/.config/gcloud/application_default_credentials.json`.
+
+### 3. Set environment variables
+
+```sh
+export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json
+export VERTEX_LOCATION=<gcp-region>
+export VERTEX_PROJECT=<gcp-project-id>
+```
+
+### 4. Start Qdrant + API
 
 ```sh
 docker-compose up -d
 ```
 
-- Qdrant will be available at [http://localhost:6333](http://localhost:6333)
-- The API will be available at [http://localhost:8080](http://localhost:8080)
-- Interactive docs: [http://localhost:8080/docs](http://localhost:8080/docs)
+- Qdrant: http://localhost:6333
+- API: http://localhost:8080
+- Interactive docs: http://localhost:8080/docs
 
-### 5. **Install Python Dependencies (for local runs)**
+### 5. Install Python dependencies (for scripts / tests)
+
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 6. **Embed Reviews into Qdrant**
-This script will embed the sample reviews and upload them to your Qdrant instance.
+### 6. Embed reviews
 
 ```sh
 python -m scripts.embed_reviews --dir reviews/
 ```
 
-- You should see output like:
-  ```
-  🧠 Embedding 14 reviews one by one...
-  ✅ Inserted 14 reviews into collection 'reviews'.
-  ```
+Expected output:
+```
+🧠 Embedding 14 reviews one by one...
+✅ Inserted 14 reviews into collection 'reviews'.
+```
 
-### 8. **Test the API**
-Send a POST request to the RAG endpoint:
+### 7. Query the API
+
 ```sh
 curl -X POST "http://localhost:8080/rag/streaming-query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What do people like about the Duck?"}'
+  -d '{"query": "What do people say about the sandwiches?"}'
 ```
 
-You should see the response streaming.
 ---
+
+## Key Design Decisions
+
+### LLM-driven query parser (`app/query_parser.py`)
+Rather than hand-coding keyword rules, a `gemini-2.5-flash-lite` call extracts structured Qdrant metadata filters (rating range, time window) from natural-language questions before retrieval. This means queries like "any complaints in the past 6 months?" automatically narrow the vector search to `rating ∈ {1,2}` + `createTime ≥ 6 months ago` — without the caller needing to specify filters explicitly.
+
+### Dynamic k selection (`app/chains.py`)
+Retrieval k scales with query intent: analytical summaries use k=1000 (near-exhaustive), comparison queries k=100, specific-example queries k=30. This avoids the common mistake of using a single fixed k for all query types.
+
+### Dense-only retrieval (current)
+The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vectors, `text-embedding-004` dense + 30522-dim sparse slot). Sparse vectors are not yet generated by the embedding model in this configuration; the fallback to dense-only is the active path. The architecture is ready to enable hybrid search when the embedding pipeline produces sparse vectors.
+
+---
+
+## Production Considerations
+
+| Concern | Approach |
+|---|---|
+| **Deployment** | Dockerized for Cloud Run; `docker-compose.yml` mirrors prod service layout |
+| **Vector DB** | Swap `QDRANT_HOST` env var to point at Qdrant Cloud; no code changes needed |
+| **Vertex AI quota** | Embed in batches; add exponential backoff on `ResourceExhausted`. Current script embeds one-at-a-time — fine for <1k reviews |
+| **Embedding cache** | Upsert uses Qdrant point IDs derived from `review_id`; re-running the ingestion script is idempotent |
+| **Multi-tenancy** | Add `business_id` to Qdrant payload and retriever filter; `/rag/streaming-query` accepts `business_id` in request body for per-tenant isolation |
+| **Observability** | Add `structlog` for structured timed log entries on retrieval, embedding, and LLM calls; hook into Cloud Logging in prod |
+| **Eval** | `eval/run_eval.py` computes recall@k against a ground-truth query set; run before and after prompt/model changes |
+
+---
+
+## Roadmap
+
+- [ ] `IngestionSource` abstraction with `GoogleTakeoutSource` + `OnChainSolanaSource` implementations
+- [ ] `business_id` payload filter for full multi-tenant isolation
+- [ ] `POST /ingest/google_takeout` endpoint for self-serve owner uploads from Gromopo dashboard
+- [ ] `anchorpy`-based on-chain indexer polling feedbites Anchor program on Solana devnet
+- [ ] `structlog` structured logging with per-request latency traces
+- [ ] Recall@k eval harness with 20 ground-truth queries
+- [ ] GitHub Actions CI (lint + test + docker-build)
+- [ ] Sparse vector support once `text-embedding-004` sparse output is available
+
+---
+
+## Related Repos
+
+| Repo | Role |
+|---|---|
+| [gromopo-tech/gromopo](https://github.com/gromopo-tech/gromopo) | Next.js ordering platform — owner dashboard, on-chain USDC payments, review upload UI |
+| [tomasArizu13/feedbites](https://github.com/tomasArizu13/feedbites) | Solana Anchor program — on-chain review storage, PDAs, devnet deployment |
 
 ## 🐳 Using Docker Compose for App and Qdrant
 

@@ -11,7 +11,7 @@ Multi-tenant RAG service that unifies owner-uploaded Google review exports and o
 ```mermaid
 flowchart TD
     A([Owner uploads<br/>Google Takeout export<br/>via Gromopo dashboard]) --> C
-    B([Customer submits<br/>post-order review<br/>via feedbites program]) --> C
+    B([Customer submits<br/>post-order review<br/>via vouched program]) --> C
     C[ReviewSource interface<br/>app/ingestion/] --> D[Vertex AI<br/>text-embedding-004<br/>768-dim dense vectors]
     D --> E[(Qdrant<br/>multi-tenant collection<br/>business_id payload filter)]
     E --> F[FastAPI<br/>POST /rag/streaming-query]
@@ -43,8 +43,8 @@ flowchart TD
 ```
 app/              FastAPI application — chains, query parser, vectorstore, models, prompts
 app/ingestion/    Pluggable ReviewSource interface + Google Takeout and on-chain Solana sources
-scripts/          Ingestion runner CLI (embed_reviews.py)
-eval/             Recall@k eval harness with ground-truth query set
+scripts/          Ingestion runner CLI (run_ingestion.py)
+eval/             Recall@k eval harness with 20 ground-truth queries
 reviews/          Sample Google Business Profile export (Duck and Decanter)
 tests/            Unit tests (pytest) — query parsing, filter building, ingestion sources
 ```
@@ -96,16 +96,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 6. Embed reviews
+### 6. Ingest reviews
 
 ```sh
-python -m scripts.embed_reviews --dir reviews/
+python3 -m scripts.run_ingestion \
+  --source google_takeout \
+  --business-id demo \
+  --input reviews/reviews-sample.json
 ```
 
 Expected output:
 ```
-🧠 Embedding 14 reviews one by one...
-✅ Inserted 14 reviews into collection 'reviews'.
+✅ Ingestion complete — ingested: 14, skipped: 0, errors: 0
 ```
 
 ### 7. Run the tests
@@ -146,21 +148,21 @@ The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vecto
 | **Vector DB** | Swap `QDRANT_HOST` env var to point at Qdrant Cloud; no code changes needed |
 | **Vertex AI quota** | Embed in batches; add exponential backoff on `ResourceExhausted`. Current script embeds one-at-a-time — fine for <1k reviews |
 | **Embedding cache** | Upsert uses Qdrant point IDs derived from `review_id`; re-running the ingestion script is idempotent |
-| **Multi-tenancy** | Add `business_id` to Qdrant payload and retriever filter; `/rag/streaming-query` accepts `business_id` in request body for per-tenant isolation |
-| **Observability** | Add `structlog` for structured timed log entries on retrieval, embedding, and LLM calls; hook into Cloud Logging in prod |
-| **Eval** | `eval/run_eval.py` computes recall@k against a ground-truth query set; run before and after prompt/model changes |
+| **Multi-tenancy** | `business_id` in Qdrant payload + retriever filter; `/rag/streaming-query` and `/query` accept `business_id` for per-tenant isolation |
+| **Observability** | `structlog` structured logging on retrieval, embedding, and LLM calls with latency in ms; hook into Cloud Logging in prod |
+| **Eval** | `python3 eval/run_eval.py` — computes recall@k against 20 ground-truth queries; run before and after prompt/model changes |
 
 ---
 
 ## Roadmap
 
-- [ ] `IngestionSource` abstraction with `GoogleTakeoutSource` + `OnChainSolanaSource` implementations
-- [ ] `business_id` payload filter for full multi-tenant isolation
+- [x] `ReviewSource` abstraction with `GoogleTakeoutSource` implementation (`app/ingestion/`)
+- [x] `business_id` payload filter for full multi-tenant isolation
+- [x] `structlog` structured logging with per-request latency traces
+- [x] Recall@k eval harness with 20 ground-truth queries (`eval/run_eval.py`)
+- [x] GitHub Actions CI (lint + test + docker-build)
+- [ ] `OnChainSolanaSource` — `anchorpy`-based indexer polling vouched Anchor program on Solana devnet
 - [ ] `POST /ingest/google_takeout` endpoint for self-serve owner uploads from Gromopo dashboard
-- [ ] `anchorpy`-based on-chain indexer polling feedbites Anchor program on Solana devnet
-- [ ] `structlog` structured logging with per-request latency traces
-- [ ] Recall@k eval harness with 20 ground-truth queries
-- [ ] GitHub Actions CI (lint + test + docker-build)
 - [ ] Sparse vector support once `text-embedding-004` sparse output is available
 
 ---
@@ -170,7 +172,7 @@ The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vecto
 | Repo | Role |
 |---|---|
 | [gromopo-tech/gromopo](https://github.com/gromopo-tech/gromopo) | Next.js ordering platform — owner dashboard, on-chain USDC payments, review upload UI |
-| [tomasArizu13/feedbites](https://github.com/tomasArizu13/feedbites) | Solana Anchor program — on-chain review storage, PDAs, devnet deployment |
+| [gromopo-tech/vouched](https://github.com/gromopo-tech/vouched) | Solana Anchor program — purchase-verified on-chain review storage, PDAs, devnet deployment |
 
 ## 🐳 Using Docker Compose for App and Qdrant
 

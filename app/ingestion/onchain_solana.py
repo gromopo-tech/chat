@@ -20,16 +20,15 @@ Design notes:
 from __future__ import annotations
 
 import asyncio
-import struct
 import logging
-from pathlib import Path
+import struct
 
-from solders.pubkey import Pubkey  # type: ignore[import-untyped]
 import base58 as _base58
 from solana.rpc.api import Client  # type: ignore[import-untyped]
 from solana.rpc.types import MemcmpOpts  # type: ignore[import-untyped]
+from solders.pubkey import Pubkey  # type: ignore[import-untyped]
 
-from app.ingestion.base import IngestResult, ReviewRecord, ReviewSource
+from app.ingestion.base import ReviewRecord, ReviewSource
 
 logger = logging.getLogger(__name__)
 

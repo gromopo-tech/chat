@@ -12,12 +12,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.ingestion.base import ReviewRecord
 from app.ingestion.onchain_solana import (
     REVIEW_DISCRIMINATOR,
-    _decode_review_account,
     OnChainReviewSource,
+    _decode_review_account,
 )
-from app.ingestion.base import ReviewRecord
 
 # ---------------------------------------------------------------------------
 # Helpers — build synthetic account data matching the on-chain layout

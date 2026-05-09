@@ -10,8 +10,8 @@ Multi-tenant RAG service that unifies owner-uploaded Google review exports and o
 
 ```mermaid
 flowchart TD
-    A([Owner uploads<br/>Google Takeout export<br/>via Gromopo dashboard]) --> C
-    B([Customer submits<br/>post-order review<br/>via vouched program]) --> C
+    A([Owner uploads<br/>Google Takeout export<br/>via Gromopo dashboard]) -->|source=google_takeout| C
+    B([Customer submits<br/>on-chain review via<br/>Vouched Anchor program]) -->|batch indexer<br/>source=onchain_solana| C
     C[ReviewSource interface<br/>app/ingestion/] --> D[Vertex AI<br/>text-embedding-004<br/>768-dim dense vectors]
     D --> E[(Qdrant<br/>multi-tenant collection<br/>business_id payload filter)]
     E --> F[FastAPI<br/>POST /rag/streaming-query]
@@ -33,7 +33,7 @@ flowchart TD
 | Embeddings | Vertex AI `text-embedding-004` (768-dim) |
 | Vector DB | Qdrant (gRPC, named dense vectors, payload filtering) |
 | Orchestration | LangChain (retriever interface, prompt templates, runnable chains) |
-| Ingestion | Pluggable `ReviewSource` — Google Takeout JSON + on-chain Solana (anchorpy) |
+| Ingestion | Pluggable `ReviewSource` — Google Takeout JSON + on-chain Solana (manual Borsh via `solders`) |
 | Deploy target | Docker / Cloud Run |
 
 ---
@@ -120,6 +120,26 @@ Expected output:
 ✅ Ingestion complete — ingested: 14, skipped: 0, errors: 0
 ```
 
+or ingest reviews from solana devnet (must have seeded devnet reviews first, see: [gromopo-tech/vouched](https://github.com/gromopo-tech/vouched)):
+```sh
+
+python3 ingest/run_ingest.py \
+  --source onchain_solana \
+  --business-id demo123 \
+  --reviewee <merchant_wallet_from_seed_output>
+```
+
+Verify both sources are in Qdrant — query with a source filter to confirm:
+```sh
+curl -s -X POST http://localhost:6333/collections/reviews/points/scroll \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "filter": {"must": [{"key": "source", "match": {"value": "onchain_solana"}}]},
+    "with_payload": true,
+    "limit": 5
+  }' | python3 -m json.tool | grep -E '"source"|"text"|"business_id"'
+  ```
+
 ### 7. Run the tests
 
 ```sh
@@ -179,7 +199,7 @@ The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vecto
 - [x] `structlog` structured logging with per-request latency traces
 - [x] Recall@k eval harness with 20 ground-truth queries (`eval/run_eval.py`)
 - [x] GitHub Actions CI (lint + test + docker-build)
-- [ ] `OnChainSolanaSource` — `anchorpy`-based indexer polling vouched Anchor program on Solana devnet
+- [x] `OnChainReviewSource` — Solana RPC + manual Borsh deserialization indexer polling vouched Anchor program on devnet (`app/ingestion/onchain_solana.py`)
 - [ ] `POST /ingest/google_takeout` endpoint for self-serve owner uploads from Gromopo dashboard
 - [ ] Sparse vector support once `text-embedding-004` sparse output is available
 

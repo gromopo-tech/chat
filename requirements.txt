@@ -1,8 +1,11 @@
+base58==2.1.1
 fastapi==0.115.14
 langchain==0.3.26
 langchain-google-vertexai==2.0.27
 langchain-qdrant==0.2.0
 qdrant-client==1.14.3
+solana==0.36.11
+solders==0.27.1
 structlog==25.1.0
 tqdm==4.67.1
 uvicorn==0.35.0

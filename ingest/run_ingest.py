@@ -88,22 +88,17 @@ def main() -> None:
         result = embed_and_upsert(records)
 
     elif args.source == "onchain_solana":
-        # Phase C — OnChainSolanaSource will be implemented in onchain_solana.py
-        try:
-            from app.ingestion.onchain_solana import OnChainSolanaSource
+        from app.ingestion.onchain_solana import OnChainReviewSource
+        from app.ingestion.pipeline import embed_and_upsert
 
-            from app.ingestion.pipeline import embed_and_upsert
-        except ImportError:
-            print(
-                "OnChainSolanaSource not yet implemented. "
-                "Complete Phase C (C1) to enable on-chain ingestion.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        log.info("ingestion_start", source="onchain_solana", business_id=args.business_id)
-        source = OnChainSolanaSource(rpc_url=args.rpc_url)
-        records = source.load(args.business_id, reviewee=args.reviewee)
+        log.info("ingestion_start", source="onchain_solana", business_id=args.business_id,
+                 reviewee=args.reviewee, rpc_url=args.rpc_url)
+        source = OnChainReviewSource()
+        records = source.load(
+            args.business_id,
+            reviewee_pubkey=args.reviewee,
+            rpc_url=args.rpc_url,
+        )
         result = embed_and_upsert(records)
 
     log.info(

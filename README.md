@@ -70,13 +70,21 @@ gcloud auth application-default login
 
 This creates the ADC file at `~/.config/gcloud/application_default_credentials.json`.
 
-### 3. Set environment variables
+### 3. Configure environment variables
 
 ```sh
-export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json
-export VERTEX_LOCATION=<gcp-region>
-export VERTEX_PROJECT=<gcp-project-id>
+cp .env.example .env
 ```
+
+Edit `.env` and fill in your GCP project and region:
+
+```sh
+QDRANT_HOST=qdrant          # leave as-is — this is the docker-compose service name
+VERTEX_PROJECT=your-gcp-project-id
+VERTEX_LOCATION=us-central1
+```
+
+**Do not export `QDRANT_HOST` in your shell.** docker-compose reads `.env` automatically and passes `QDRANT_HOST=qdrant` to the app container (where `qdrant` resolves via Docker's internal network). Local scripts run outside Docker and use the default `localhost` — exporting `QDRANT_HOST=qdrant` in your shell would break them.
 
 ### 4. Start Qdrant + API
 
@@ -98,10 +106,12 @@ pip install -r requirements.txt
 
 ### 6. Ingest reviews
 
+Run this from the repo root with the venv active. The script connects to Qdrant on `localhost:6334` by default — no env var needed.
+
 ```sh
-python3 -m scripts.run_ingestion \
+python3 -m ingest.run_ingest \
   --source google_takeout \
-  --business-id demo \
+  --business-id demo123 \
   --input reviews/reviews-sample.json
 ```
 
@@ -122,8 +132,16 @@ python3 -m pytest tests/
 ```sh
 curl -X POST "http://localhost:8080/rag/streaming-query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What do people say about the sandwiches?"}'
+  -d @- <<'EOF'
+{
+  "query": "How can I improve business?",
+  "business_id": "demo123",
+  "business_name": "Sandy's Sandies"
+}
+EOF
 ```
+
+`business_id` scopes retrieval to that tenant's reviews. `business_name` personalises the LLM prompts (e.g. "You are helping the owner of Duck and Decanter…"). Both are optional — omit them to query across all reviews with generic phrasing.
 
 ---
 
@@ -148,7 +166,7 @@ The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vecto
 | **Vector DB** | Swap `QDRANT_HOST` env var to point at Qdrant Cloud; no code changes needed |
 | **Vertex AI quota** | Embed in batches; add exponential backoff on `ResourceExhausted`. Current script embeds one-at-a-time — fine for <1k reviews |
 | **Embedding cache** | Upsert uses Qdrant point IDs derived from `review_id`; re-running the ingestion script is idempotent |
-| **Multi-tenancy** | `business_id` in Qdrant payload + retriever filter; `/rag/streaming-query` and `/query` accept `business_id` for per-tenant isolation |
+| **Multi-tenancy** | `business_id` in Qdrant payload + retriever filter; `/rag/streaming-query` and `/query` accept `business_id` for per-tenant isolation and `business_name` to personalise LLM prompts |
 | **Observability** | `structlog` structured logging on retrieval, embedding, and LLM calls with latency in ms; hook into Cloud Logging in prod |
 | **Eval** | `python3 eval/run_eval.py` — computes recall@k against 20 ground-truth queries; run before and after prompt/model changes |
 

@@ -24,7 +24,7 @@ async def rag_streaming_query(request: QueryRequest):
             yield f"data: {json.dumps({'status': 'start'})}\n\n"
             full_answer = ""
 
-            async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id):
+            async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id, business_name=request.business_name or "this restaurant"):
                 if "metadata" in chunk:
                     yield f"data: {json.dumps({'type': 'metadata', 'data': chunk['metadata']})}\n\n"
                     continue
@@ -58,7 +58,7 @@ async def query(request: QueryRequest):
     context: list[str] = []
     parsed_filter = None
 
-    async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id):
+    async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id, business_name=request.business_name or "this restaurant"):
         if "metadata" in chunk:
             context = chunk["metadata"].get("context", [])
             parsed_filter = chunk["metadata"].get("parsed_filter")

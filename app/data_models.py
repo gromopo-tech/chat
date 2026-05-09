@@ -10,6 +10,7 @@ class ChatMessage(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     business_id: str | None = None
+    business_name: str | None = None
     session_id: str | None = None
     chat_history: list[ChatMessage] | None = []
 

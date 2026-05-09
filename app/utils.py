@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import qdrant_client
 
@@ -13,7 +13,7 @@ def iso8601_to_timestamp(dt_str):
 # TODO: Finish implementing and use in prompts
 def get_review_stats_parallel(qdrant_client, collection_name, models: qdrant_client.models):
     """Get review stats for each rating (1-5) over the last week, month, and year."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     periods = {
         "week": now - timedelta(days=7),
         "month": now - timedelta(days=30),

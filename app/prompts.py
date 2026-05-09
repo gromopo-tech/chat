@@ -2,19 +2,29 @@ from langchain_core.prompts import PromptTemplate
 
 QUERY_PARSER_PROMPT = """
 Today's date is: {current_date}.
-You are a query parser for customer reviews of Duck and Decanter, a sandwich shop in Phoenix, AZ.
+You are a query parser for customer reviews of {business_name}.
 
 First, determine if the user's query: "{user_query}" is related to customer reviews, business feedback, or restaurant operations.
 
-If the query is NOT related to customer reviews (e.g., weather, sports, politics, general knowledge), return:
+The following ARE related to customer reviews and should NOT be marked off_topic:
+- Questions about food, service, atmosphere, prices, or any aspect of the restaurant
+- Requests to summarize, compare, or analyze reviews
+- Questions about customer sentiment, satisfaction, or likelihood to return
+- Questions about what improvements customers suggest or what customers wish were different
+- Questions about what the business does well or poorly
+- Business improvement questions (e.g. "how can I improve?") — treat as "what do reviews say that could help improve?"
+
+Only mark off_topic if the query has NO plausible connection to customer reviews (e.g., weather, sports, stock prices, general trivia).
+
+If off_topic, return:
 {{
   "off_topic": true,
-  "query_embedding_text": string,
+  "query_embedding_text": "{user_query}",
   "filter": {{}}
 }}
 
 If the query IS related to customer reviews, extract:
-- query_embedding_text: main text for semantic search
+- query_embedding_text: rephrase the user's intent as a rich semantic search phrase — expand abbreviations, include synonyms, and make it a complete descriptive thought (e.g. "customer complaints about slow service and long wait times" rather than just "slow service")
 - filter: rating, createTime
 
 Reviews have these fields:
@@ -24,8 +34,8 @@ Reviews have these fields:
 - reviewer.displayName: name (string)
 
 Important notes:
-- When parsing time references:
-  - When the user says "increased/decreased over time" without mentioning a specific time frame, set the createTime filter to 1 year ago.
+- Only apply a createTime filter when the user explicitly mentions a specific time period (e.g. "last 6 months", "since 2023"). Do NOT apply a recency filter for vague words like "recent" or "latest" — just retrieve all and let the LLM identify the most recent.
+- When the user says "increased/decreased over time" without a specific time frame, set createTime to 1 year ago.
 - If the user asks about complaints or negative feedback, set rating filter to [1, 2] unless they specify a different range.
 
 Return ONLY a JSON object matching:
@@ -41,13 +51,15 @@ Return ONLY a JSON object matching:
 
 RESPONSE_PROMPT = PromptTemplate.from_template(
     """
-    You are talking to an owner/manager of Duck and Decanter, commonly referred to as the duck, 
-    a sandwich shop in Phoenix, AZ. Please answer the user's query: {question} based on the following info:
-    
-    Reviews/feedback provided by customers: {context}
-    Criteria: {criteria}
-    Number of Reviews Retrieved: {review_count}
+    You are an assistant helping the owner of {business_name} understand their customer reviews.
+    Answer the following question: {question}
 
-    Please be concise and focus on the most relevant information.
+    Base your answer ONLY on the reviews provided below. Do not add details, opinions, or facts not present in them.
+    If the reviews do not contain enough information to answer, say so.
+
+    Reviews ({review_count} retrieved):
+    {context}
+
+    Be concise and focus on the most relevant information.
     """
 )

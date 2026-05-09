@@ -40,10 +40,10 @@ def _get_k_value_for_query(user_query: str) -> int:
     # Default for general queries
     return 50
 
-def _prepare_query(user_query: str, business_id: str | None = None) -> tuple[dict, str, object]:
+def _prepare_query(user_query: str, business_id: str | None = None, business_name: str = "this restaurant") -> tuple[dict, str, object]:
     """Common query preparation logic for both streaming and non-streaming RAG responses."""
     t0 = time.monotonic()
-    parsed = parse_query_with_llm(user_query)
+    parsed = parse_query_with_llm(user_query, business_name=business_name)
     filter_dict = parsed.get("filter")
     qdrant_filter = build_qdrant_filter(filter_dict, business_id=business_id)
     
@@ -59,25 +59,24 @@ def _prepare_query(user_query: str, business_id: str | None = None) -> tuple[dic
     
     return filter_dict, embedding_text, retriever
 
-def _rag_runnable(context: list[str], filter_dict: dict, review_count: int = None) -> RunnableMap:
+def _rag_runnable(context: list[str], review_count: int, business_name: str) -> RunnableMap:
     return RunnableMap(
         {
             "context": lambda _: "\n\n".join(context),
-            "criteria": lambda _: filter_dict,
             "review_count": lambda _: review_count,
+            "business_name": lambda _: business_name,
             "question": lambda x: x["question"],
         }
     )
 
-async def get_streaming_rag_response(user_query: str, business_id: str | None = None) -> AsyncIterator[dict[str, Any]]:
+async def get_streaming_rag_response(user_query: str, business_id: str | None = None, business_name: str = "this restaurant") -> AsyncIterator[dict[str, Any]]:
     """Streams tokens as they're generated."""
-    filter_dict, embedding_text, retriever = _prepare_query(user_query, business_id=business_id)
-    parsed = parse_query_with_llm(user_query)
+    filter_dict, embedding_text, retriever = _prepare_query(user_query, business_id=business_id, business_name=business_name)
+    parsed = parse_query_with_llm(user_query, business_name=business_name)
     if parsed.get("off_topic", False):
         yield {
-            "answer": "Sorry, I can't assist you yet with that. Currently I'm only able to help you "
-            "understand customer feedback for Duck and Decanter and improve business based on customer feedback. "
-            "Please ask me about customer reviews, complaints, praise, business insights, or suggestions for improvements.",
+            "answer": f"Sorry, I can only help with questions about customer reviews for {business_name}. "
+            "Please ask me about customer feedback, complaints, praise, sentiment, or suggestions for improvement.",
             "context": [],
             "parsed_filter": None,
             "done": True
@@ -109,7 +108,7 @@ async def get_streaming_rag_response(user_query: str, business_id: str | None = 
     # Now stream the answer in chunks
     llm_t0 = time.monotonic()
     streaming_rag_chain = (
-        _rag_runnable(context, filter_dict, review_count)
+        _rag_runnable(context, review_count, business_name)
         | RESPONSE_PROMPT
         | default_llm
     )

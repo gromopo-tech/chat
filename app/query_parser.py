@@ -6,11 +6,11 @@ from app.prompts import QUERY_PARSER_PROMPT
 from app.vertexai_models import query_parser_llm
 
 
-def parse_query_with_llm(user_query: str) -> dict[str, Any]:
+def parse_query_with_llm(user_query: str, business_name: str = "this restaurant") -> dict[str, Any]:
     # to simulate streaming reviews we use the day after the most recent review (2025-05-25)
     current_date = datetime(2025, 5, 25).strftime("%Y-%m-%d")
     prompt = QUERY_PARSER_PROMPT.format(
-        user_query=user_query, current_date=current_date
+        user_query=user_query, current_date=current_date, business_name=business_name
     )
     response = query_parser_llm.invoke(prompt)
     # Extract content from AIMessage object

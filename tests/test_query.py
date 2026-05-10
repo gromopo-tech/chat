@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.data_models import ChatMessage, QueryRequest
 
@@ -94,6 +95,48 @@ def test_prepare_query(mock_parse, mock_retriever):
     mock_retriever.assert_called_once()
     call_args = mock_retriever.call_args
     assert call_args[1]["k"] == 50  # Default k value for "test query"
+
+
+@patch("app.chains._stream_llm_response")
+@patch("app.chains.create_dense_retriever")
+@patch("app.chains.parse_query_with_llm")
+def test_no_reviews_fallback_calls_llm(mock_parse, mock_create_retriever, mock_stream):
+    """When retrieval returns empty, the chain should stream an LLM response, not a hardcoded string."""
+    from app.chains import get_streaming_rag_response
+
+    mock_parse.return_value = {
+        "off_topic": False,
+        "query_embedding_text": "quantum cryptography",
+        "filter": {},
+    }
+
+    mock_retriever = MagicMock()
+    mock_retriever.ainvoke = AsyncMock(return_value=[])
+    mock_create_retriever.return_value = mock_retriever
+
+    async def fake_stream(_chain, _inputs):
+        yield {"chunk": "No matching reviews. "}
+        yield {"chunk": "Try asking about food quality."}
+
+    mock_stream.side_effect = fake_stream
+
+    async def run():
+        chunks = []
+        async for chunk in get_streaming_rag_response("quantum cryptography", business_id="demo"):
+            chunks.append(chunk)
+        return chunks
+
+    chunks = asyncio.run(run())
+
+    # First yield is metadata with empty context
+    assert chunks[0] == {"metadata": {"context": [], "parsed_filter": {}}}
+    # LLM stream helper was called (not a hardcoded answer)
+    mock_stream.assert_called_once()
+    # Final chunk signals done
+    assert chunks[-1] == {"done": True}
+    # Hardcoded string must NOT appear
+    full_text = "".join(c.get("chunk", "") for c in chunks)
+    assert "There are no reviews matching your query" not in full_text
 
 
 def test_query_request_model():

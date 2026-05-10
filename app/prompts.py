@@ -57,9 +57,50 @@ RESPONSE_PROMPT = PromptTemplate.from_template(
     Base your answer ONLY on the reviews provided below. Do not add details, opinions, or facts not present in them.
     If the reviews do not contain enough information to answer, say so.
 
+    Conversation so far (may be empty):
+    {chat_history}
+
     Reviews ({review_count} retrieved):
     {context}
 
-    Be concise and focus on the most relevant information.
+    Be concise and focus on the most relevant information. If the user is asking a follow-up
+    that refers to earlier turns, use the conversation context to resolve references but still
+    ground every factual claim in the reviews above.
+    """
+)
+
+
+NO_RESULTS_PROMPT = PromptTemplate.from_template(
+    """
+    You are a helpful assistant for the owner of {business_name}. The owner asked:
+    "{question}"
+
+    There are no customer reviews in the database yet. Do NOT invent or quote any review content.
+
+    Give a genuinely useful response:
+    - If the question asks for advice or improvements, provide 2-3 concrete, actionable
+      suggestions based on general best practices for restaurants/businesses. Be specific
+      and practical, not generic. Clearly frame it as general advice since no reviews are
+      available yet.
+    - If the question asks about what customers think or feel, explain that you don't have
+      review data to draw from yet, and briefly suggest they upload reviews via the dashboard
+      to get data-driven insights.
+    - Either way, keep the response concise and genuinely helpful — do not simply refuse.
+    """
+)
+
+
+QUESTION_REWRITER_PROMPT = PromptTemplate.from_template(
+    """
+    Given the conversation history and a follow-up question, rewrite the follow-up as a
+    standalone question that includes any context from the history needed for retrieval.
+    If the question is already standalone, return it unchanged. Do NOT answer the question.
+
+    History:
+    {chat_history}
+
+    Follow-up: {question}
+
+    Standalone question:
     """
 )

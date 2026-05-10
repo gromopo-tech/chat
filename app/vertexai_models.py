@@ -1,8 +1,11 @@
+import structlog
 import vertexai
 from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
 from vertexai.language_models import TextEmbeddingModel
 
 from app.config import Config
+
+log = structlog.get_logger(__name__)
 
 # Initialize Vertex AI
 vertexai.init(project=Config.PROJECT, location=Config.LOCATION)
@@ -42,7 +45,7 @@ def get_llm_for_query(user_query: str) -> ChatVertexAI:
     ]
     
     if any(keyword in query_lower for keyword in pro_keywords):
-        print(f"Using Pro model for query: {user_query[:50]}...")
+        log.info("llm_model_selected", model="thinking", query_preview=user_query[:50])
         return thinking_llm
     else:
         return default_llm
@@ -98,7 +101,7 @@ def get_hybrid_embeddings(text: str):
             'sparse': sparse_vector
         }
     except Exception as e:
-        print(f"Error getting hybrid embeddings: {e}")
+        log.error("hybrid_embeddings_failed", error=str(e))
         # Fallback to legacy embeddings model
         try:
             dense_vector = _get_legacy_embeddings_model().embed_query(text)
@@ -107,7 +110,7 @@ def get_hybrid_embeddings(text: str):
                 'sparse': None
             }
         except Exception as fallback_error:
-            print(f"Fallback embedding also failed: {fallback_error}")
+            log.error("embeddings_fallback_failed", error=str(fallback_error))
             raise e
 
 def get_query_embeddings(text: str):
@@ -134,7 +137,7 @@ def get_query_embeddings(text: str):
             'sparse': sparse_vector
         }
     except Exception as e:
-        print(f"Error getting query embeddings: {e}")
+        log.error("query_embeddings_failed", error=str(e))
         # Fallback to legacy embeddings model
         try:
             dense_vector = _get_legacy_embeddings_model().embed_query(text)
@@ -143,5 +146,5 @@ def get_query_embeddings(text: str):
                 'sparse': None
             }
         except Exception as fallback_error:
-            print(f"Fallback embedding also failed: {fallback_error}")
+            log.error("embeddings_fallback_failed", error=str(fallback_error))
             raise e

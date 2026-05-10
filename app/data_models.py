@@ -28,8 +28,3 @@ class IngestResponse(BaseModel):
     ingested: int
     skipped: int
     errors: list[str]
-
-
-# Simple in-memory storage (use Redis/DB in production)
-last_contexts: dict[str, list[str]] = {}
-last_filters: dict[str, dict] = {}

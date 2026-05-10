@@ -10,6 +10,7 @@ from app.data_models import IngestGoogleTakeoutRequest, IngestResponse, QueryReq
 from app.ingestion.google_takeout import GoogleTakeoutSource
 from app.ingestion.pipeline import embed_and_upsert
 from app.logging_config import setup_logging
+from app.vectorstore import get_qdrant
 
 setup_logging()
 log = structlog.get_logger(__name__)
@@ -27,7 +28,7 @@ async def rag_streaming_query(request: QueryRequest):
             yield f"data: {json.dumps({'status': 'start'})}\n\n"
             full_answer = ""
 
-            async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id, business_name=request.business_name or "this restaurant"):
+            async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id, business_name=request.business_name or "this restaurant", chat_history=request.chat_history):
                 if "metadata" in chunk:
                     yield f"data: {json.dumps({'type': 'metadata', 'data': chunk['metadata']})}\n\n"
                     continue
@@ -61,7 +62,7 @@ async def query(request: QueryRequest):
     context: list[str] = []
     parsed_filter = None
 
-    async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id, business_name=request.business_name or "this restaurant"):
+    async for chunk in get_streaming_rag_response(request.query, business_id=request.business_id, business_name=request.business_name or "this restaurant", chat_history=request.chat_history):
         if "metadata" in chunk:
             context = chunk["metadata"].get("context", [])
             parsed_filter = chunk["metadata"].get("parsed_filter")
@@ -104,6 +105,20 @@ def ingest_google_takeout(
         skipped=result.skipped,
         errors=result.errors,
     )
+
+
+@app.get("/health")
+def health():
+    """Liveness + Qdrant reachability check. Returns 503 if Qdrant is unreachable."""
+    try:
+        get_qdrant().get_collections()
+        return {"status": "ok", "qdrant": "ok"}
+    except Exception as e:
+        log.error("health_check_qdrant_failed", error=str(e))
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "degraded", "qdrant": "unreachable"},
+        )
 
 
 @app.get("/")

@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any
 
+import structlog
 from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
@@ -11,6 +12,8 @@ from qdrant_client.models import Distance, SparseIndexParams, SparseVectorParams
 from app.config import Config
 from app.utils import iso8601_to_timestamp
 from app.vertexai_models import get_query_embeddings
+
+log = structlog.get_logger(__name__)
 
 
 def get_qdrant():
@@ -118,7 +121,7 @@ def hybrid_search(query_text: str, qdrant_filter: models.Filter = None, k: int =
         
     except Exception as e:
         # Fallback to default vector search if named vectors don't exist yet
-        print(f"Named vector search failed, trying default vector: {e}")
+        log.warning("named_vector_search_failed", error=str(e))
         try:
             dense_results = qdrant.search(
                 collection_name=Config.COLLECTION_NAME,
@@ -137,7 +140,7 @@ def hybrid_search(query_text: str, qdrant_filter: models.Filter = None, k: int =
             
             return combined_results
         except Exception as fallback_error:
-            print(f"All search methods failed: {fallback_error}")
+            log.error("all_search_methods_failed", error=str(fallback_error))
             return []
 
 

@@ -20,6 +20,13 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/adc.json
       - VERTEX_PROJECT=${VERTEX_PROJECT}
       - VERTEX_LOCATION=${VERTEX_LOCATION}
+      # OrbStack injects no_proxy/NO_PROXY with IPv6 CIDRs (e.g. fd07:b51a:cc66:f0::/64)
+      # that crash httpx's URLPattern parser and gRPC's proxy handling.
+      # Override with a clean list: qdrant (same bridge network, no proxy needed) +
+      # localhost entries.  External traffic (Vertex AI) still routes via HTTP_PROXY.
+      - no_proxy=localhost,127.0.0.1,qdrant
+      - NO_PROXY=localhost,127.0.0.1,qdrant
+      - INGEST_SHARED_SECRET=${INGEST_SHARED_SECRET}
     volumes:
       - $HOME/.config/gcloud/application_default_credentials.json:/tmp/adc.json:ro
     depends_on:

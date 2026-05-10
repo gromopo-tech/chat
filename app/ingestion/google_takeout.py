@@ -44,27 +44,18 @@ def _parse_timestamp(dt_str: str | None) -> float | None:
 class GoogleTakeoutSource(ReviewSource):
     """Ingests reviews from a Google Business Profile / Takeout JSON export file."""
 
-    def load(self, business_id: str, *, input_path: str | Path, **kwargs) -> list[ReviewRecord]:
-        """Parse a Google Takeout JSON file and return ReviewRecords.
+    @classmethod
+    def parse_records(cls, business_id: str, raw_reviews: list[dict]) -> list[ReviewRecord]:
+        """Map a list of raw Google Takeout review dicts to ReviewRecord objects.
 
-        Args:
-            business_id: Tenant identifier (e.g. Firestore business doc ID).
-            input_path: Path to the JSON export file.
-
-        Returns:
-            List of ReviewRecord objects. Reviews with no comment text are skipped.
+        Used by both the CLI file-based loader and the HTTP ingest endpoint.
+        Reviews missing comment text, a name field, or an unrecognised star rating are skipped.
         """
-        path = Path(input_path)
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-
-        raw_reviews = data.get("reviews", [])
         records: list[ReviewRecord] = []
 
         for raw in raw_reviews:
             comment = raw.get("comment", "").strip()
             if not comment:
-                # No text — nothing to embed; skip silently
                 continue
 
             name = raw.get("name", "")
@@ -97,6 +88,25 @@ class GoogleTakeoutSource(ReviewSource):
                     },
                 )
             )
+
+        return records
+
+    def load(self, business_id: str, *, input_path: str | Path, **kwargs) -> list[ReviewRecord]:
+        """Parse a Google Takeout JSON file and return ReviewRecords.
+
+        Args:
+            business_id: Tenant identifier (e.g. Firestore business doc ID).
+            input_path: Path to the JSON export file.
+
+        Returns:
+            List of ReviewRecord objects. Reviews with no comment text are skipped.
+        """
+        path = Path(input_path)
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+
+        raw_reviews = data.get("reviews", [])
+        records = self.parse_records(business_id, raw_reviews)
 
         logger.info(
             "Parsed %d records from %s (skipped %d with no comment)",

@@ -1,11 +1,14 @@
 import json
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.chains import get_streaming_rag_response
-from app.data_models import QueryRequest, QueryResponse
+from app.config import Config
+from app.data_models import IngestGoogleTakeoutRequest, IngestResponse, QueryRequest, QueryResponse
+from app.ingestion.google_takeout import GoogleTakeoutSource
+from app.ingestion.pipeline import embed_and_upsert
 from app.logging_config import setup_logging
 
 setup_logging()
@@ -68,6 +71,39 @@ async def query(request: QueryRequest):
             full_answer = chunk["answer"]
 
     return QueryResponse(answer=full_answer, context=context, parsed_filter=parsed_filter)
+
+
+@app.post("/ingest/google_takeout", response_model=IngestResponse)
+def ingest_google_takeout(
+    req: IngestGoogleTakeoutRequest,
+    authorization: str = Header(...),
+):
+    """Ingest Google Business Profile / Takeout reviews into Qdrant for a given tenant.
+
+    Accepts the raw review array parsed client-side from a Google Takeout JSON export.
+    Runs synchronously — fine for up to ~200 reviews; production would queue via Cloud Tasks.
+
+    Auth: shared secret passed as 'Authorization: Bearer <INGEST_SHARED_SECRET>'.
+    """
+    expected = Config.INGEST_SHARED_SECRET
+    if not expected or authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="Invalid ingest credentials")
+
+    records = GoogleTakeoutSource.parse_records(req.business_id, req.reviews)
+    result = embed_and_upsert(records)
+
+    log.info(
+        "ingest_complete",
+        business_id=req.business_id,
+        ingested=result.ingested,
+        skipped=result.skipped,
+        errors=len(result.errors),
+    )
+    return IngestResponse(
+        ingested=result.ingested,
+        skipped=result.skipped,
+        errors=result.errors,
+    )
 
 
 @app.get("/")

@@ -19,6 +19,17 @@ class QueryResponse(BaseModel):
     context: list[str]
     parsed_filter: dict[str, Any] | None = None
 
+class IngestGoogleTakeoutRequest(BaseModel):
+    business_id: str
+    reviews: list[dict]  # raw Google Takeout review entries from client-side JSON parse
+
+
+class IngestResponse(BaseModel):
+    ingested: int
+    skipped: int
+    errors: list[str]
+
+
 # Simple in-memory storage (use Redis/DB in production)
 last_contexts: dict[str, list[str]] = {}
 last_filters: dict[str, dict] = {}

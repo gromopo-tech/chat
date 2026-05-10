@@ -45,7 +45,7 @@ app/              FastAPI application — chains, query parser, vectorstore, mod
 app/ingestion/    Pluggable ReviewSource interface + Google Takeout and on-chain Solana sources
 scripts/          Ingestion runner CLI (run_ingestion.py)
 eval/             Recall@k eval harness with 20 ground-truth queries
-reviews/          Sample Google Business Profile export (Duck and Decanter)
+reviews/          Sample Google Business Profile export
 tests/            Unit tests (pytest) — query parsing, filter building, ingestion sources
 ```
 
@@ -111,7 +111,7 @@ Run this from the repo root with the venv active. The script connects to Qdrant 
 ```sh
 python3 -m ingest.run_ingest \
   --source google_takeout \
-  --business-id demo123 \
+  --business-id sandys-sandies \
   --input reviews/reviews-sample.json
 ```
 
@@ -147,7 +147,23 @@ pip install -r requirements-dev.txt
 python3 -m pytest tests/
 ```
 
-### 8. Query the API
+### 8. Self-serve ingest endpoint
+
+The Gromopo dashboard's "Upload Reviews" page calls this endpoint directly. You can also call it with curl for testing:
+
+```sh
+curl -X POST "http://localhost:8080/ingest/google_takeout" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $INGEST_SHARED_SECRET" \
+  -d '{
+    "business_id": "sandys-sandies", 
+    "reviews": [<paste reviews array from Google Takeout JSON here>]
+  }'
+```
+
+Set `INGEST_SHARED_SECRET` to the same value in both `.env` and Gromopo's `.env.local`. The endpoint is synchronous and handles up to ~200 reviews comfortably; production deployments would queue larger batches via Cloud Tasks / Pub/Sub.
+
+### 9. Query the API
 
 ```sh
 curl -X POST "http://localhost:8080/rag/streaming-query" \
@@ -155,13 +171,13 @@ curl -X POST "http://localhost:8080/rag/streaming-query" \
   -d @- <<'EOF'
 {
   "query": "How can I improve business?",
-  "business_id": "demo123",
+  "business_id": "sandys-sandies",
   "business_name": "Sandy's Sandies"
 }
 EOF
 ```
 
-`business_id` scopes retrieval to that tenant's reviews. `business_name` personalises the LLM prompts (e.g. "You are helping the owner of Duck and Decanter…"). Both are optional — omit them to query across all reviews with generic phrasing.
+`business_id` scopes retrieval to that tenant's reviews. `business_name` personalises the LLM prompts (e.g. "You are helping the owner of Sandy's Sandies…"). Both are optional — omit them to query across all reviews with generic phrasing.
 
 ---
 
@@ -200,7 +216,7 @@ The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vecto
 - [x] Recall@k eval harness with 20 ground-truth queries (`eval/run_eval.py`)
 - [x] GitHub Actions CI (lint + test + docker-build)
 - [x] `OnChainReviewSource` — Solana RPC + manual Borsh deserialization indexer polling vouched Anchor program on devnet (`app/ingestion/onchain_solana.py`)
-- [ ] `POST /ingest/google_takeout` endpoint for self-serve owner uploads from Gromopo dashboard
+- [x] `POST /ingest/google_takeout` — shared-secret authenticated endpoint for self-serve owner uploads from Gromopo dashboard
 - [ ] Sparse vector support once `text-embedding-004` sparse output is available
 
 ---

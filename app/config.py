@@ -32,6 +32,13 @@ class Config:
     DENSE_WEIGHT: float = float(os.getenv("DENSE_WEIGHT", "0.7"))
     SPARSE_WEIGHT: float = float(os.getenv("SPARSE_WEIGHT", "0.3"))
 
+    # --------------------------
+    # Ingest API Auth
+    # --------------------------
+    # Shared secret for the /ingest/* endpoints. Set in both chat and gromopo envs.
+    # Optional in dev (omit to disable auth check); required in production.
+    INGEST_SHARED_SECRET: str | None = os.getenv("INGEST_SHARED_SECRET")
+
     @classmethod
     def is_production(cls) -> bool:
         return cls.ENV == "production"

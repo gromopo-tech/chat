@@ -40,24 +40,26 @@ def _get_k_value_for_query(user_query: str) -> int:
     # Default for general queries
     return 50
 
-def _prepare_query(user_query: str, business_id: str | None = None, business_name: str = "this restaurant") -> tuple[dict, str, object]:
-    """Common query preparation logic for both streaming and non-streaming RAG responses."""
+def _prepare_query(user_query: str, business_id: str | None = None, business_name: str = "this restaurant") -> tuple[dict, str, object, dict]:
+    """Parse the query, build the Qdrant filter, and return the retriever.
+
+    Returns (filter_dict, embedding_text, retriever, parsed) so callers can read
+    off_topic and other parsed fields without a second LLM call.
+    """
     t0 = time.monotonic()
-    parsed = parse_query_with_llm(user_query, business_name=business_name)
+    try:
+        parsed = parse_query_with_llm(user_query, business_name=business_name)
+    except ValueError:
+        log.warning("query_parse_failed", query=user_query[:80])
+        parsed = {"off_topic": False, "query_embedding_text": user_query, "filter": {}}
     filter_dict = parsed.get("filter")
     qdrant_filter = build_qdrant_filter(filter_dict, business_id=business_id)
-    
-    # Dynamic k based on query type
     k_value = _get_k_value_for_query(user_query)
     log.info("query_prepared", k=k_value, business_id=business_id, filter=filter_dict,
              parse_latency_ms=round((time.monotonic() - t0) * 1000, 1))
-    
-    # Create dense retriever
     retriever = create_dense_retriever(qdrant_filter=qdrant_filter, k=k_value)
-
     embedding_text = parsed["query_embedding_text"]
-    
-    return filter_dict, embedding_text, retriever
+    return filter_dict, embedding_text, retriever, parsed
 
 def _rag_runnable(context: list[str], review_count: int, business_name: str) -> RunnableMap:
     return RunnableMap(
@@ -71,8 +73,7 @@ def _rag_runnable(context: list[str], review_count: int, business_name: str) -> 
 
 async def get_streaming_rag_response(user_query: str, business_id: str | None = None, business_name: str = "this restaurant") -> AsyncIterator[dict[str, Any]]:
     """Streams tokens as they're generated."""
-    filter_dict, embedding_text, retriever = _prepare_query(user_query, business_id=business_id, business_name=business_name)
-    parsed = parse_query_with_llm(user_query, business_name=business_name)
+    filter_dict, embedding_text, retriever, parsed = _prepare_query(user_query, business_id=business_id, business_name=business_name)
     if parsed.get("off_topic", False):
         yield {
             "answer": f"Sorry, I can only help with questions about customer reviews for {business_name}. "

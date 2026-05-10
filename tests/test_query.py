@@ -84,7 +84,7 @@ def test_prepare_query(mock_parse, mock_retriever):
     mock_retriever_instance = MagicMock()
     mock_retriever.return_value = mock_retriever_instance
     
-    filter_dict, embedding_text, retriever = _prepare_query("test query", business_id="biz_001")
+    filter_dict, embedding_text, retriever, parsed = _prepare_query("test query", business_id="biz_001")
     
     assert filter_dict == {"rating": {"$in": [1, 2, 3]}}
     assert embedding_text == "test query"

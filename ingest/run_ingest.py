@@ -28,11 +28,25 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 import structlog
+from dotenv import load_dotenv
 
-from app.logging_config import setup_logging
+# Load .env before any app.* imports — app.config reads os.getenv() at import time
+# and docker-compose loads .env automatically, but direct `python3 -m` invocations do not.
+#
+# QDRANT_HOST special case: .env contains "qdrant" (the Docker service hostname) which only
+# resolves inside the Docker network. Local scripts must use the "localhost" default instead.
+# We only keep the .env value if the variable was already set in the real shell environment.
+_qdrant_host_pre = os.environ.get("QDRANT_HOST")
+load_dotenv()
+from app.logging_config import setup_logging  # noqa: E402
+
+if _qdrant_host_pre is None:
+    os.environ.pop("QDRANT_HOST", None)
+
 
 setup_logging()
 log = structlog.get_logger(__name__)

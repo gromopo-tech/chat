@@ -1,20 +1,20 @@
-{"query": "What do customers love most about the food?", "expected_keywords": ["duck", "sandwich", "food", "favorite", "great"], "business_id": "demo123"}
-{"query": "What are the most common complaints?", "expected_keywords": ["waste of money", "overpriced", "prices", "Average", "address"], "business_id": "demo123"}
-{"query": "What do reviews say about the service?", "expected_keywords": ["service", "staff", "friendly", "slow", "wait"], "business_id": "demo123"}
-{"query": "Are there any complaints about prices or value?", "expected_keywords": ["overpriced", "prices", "waste of money", "steep", "jacked up"], "business_id": "demo123"}
-{"query": "What do people say about the atmosphere or ambiance?", "expected_keywords": ["atmosphere", "music", "live", "ambiance", "vibe", "cozy"], "business_id": "demo123"}
-{"query": "Tell me about a specific positive experience a customer had.", "expected_keywords": ["love", "amazing", "great", "best", "favorite", "excellent"], "business_id": "demo123"}
-{"query": "What items on the menu are mentioned most often?", "expected_keywords": ["duck", "sandwich", "Ruben", "food", "menu"], "business_id": "demo123"}
-{"query": "Are customers likely to return or recommend this place?", "expected_keywords": ["revisit", "again", "ritual", "invited", "back", "return"], "business_id": "demo123"}
-{"query": "What do 5-star reviews say?", "expected_keywords": ["amazing", "love", "great", "excellent", "best", "favorite"], "business_id": "demo123"}
-{"query": "What do 1 or 2 star reviews complain about?", "expected_keywords": ["waste of money", "Average", "address", "prices", "overpriced"], "business_id": "demo123"}
-{"query": "What do customers say about delivery or takeout?", "expected_keywords": ["deliver", "delivery", "takeout", "location", "order"], "business_id": "demo123"}
-{"query": "Are there any reviews mentioning music or entertainment?", "expected_keywords": ["music", "live", "entertainment", "band"], "business_id": "demo123"}
-{"query": "What improvements do customers suggest?", "expected_keywords": ["prices", "portions", "quantities", "address", "directions"], "business_id": "demo123"}
-{"query": "How do customers describe the bread or baked goods?", "expected_keywords": ["bread", "baked", "fresh", "bakery"], "business_id": "demo123"}
-{"query": "What do customers say about the overall experience compared to other restaurants?", "expected_keywords": ["anywhere", "anywhere else", "nowhere", "find anywhere", "5 stars"], "business_id": "demo123"}
-{"query": "Are there reviews from customers who come regularly?", "expected_keywords": ["ritual", "regular", "always", "every", "week", "Sunday"], "business_id": "demo123"}
-{"query": "What do customers say about the tea or drinks?", "expected_keywords": ["tea", "drink", "coffee", "beer", "beverage"], "business_id": "demo123"}
-{"query": "What is the most recent negative feedback?", "expected_keywords": ["waste of money", "Average", "overpriced", "prices", "address"], "business_id": "demo123"}
-{"query": "Do any reviews mention Comic Sans or design issues?", "expected_keywords": ["Comic Sans", "menu", "font", "design"], "business_id": "demo123"}
-{"query": "Summarize the overall customer sentiment.", "expected_keywords": ["amazing", "love", "great", "food", "sandwiches", "delicious"], "business_id": "demo123"}
+{"query": "What do customers love most about the food?", "expected_keywords": ["duck", "sandwich", "food", "favorite", "great"], "business_id": "sandys-sandies"}
+{"query": "What are the most common complaints?", "expected_keywords": ["dry", "unfriendly", "overrated", "cold", "wrong"], "business_id": "sandys-sandies"}
+{"query": "What do reviews say about the service?", "expected_keywords": ["service", "staff", "friendly", "slow", "wait"], "business_id": "sandys-sandies"}
+{"query": "Are there any complaints about prices or value?", "expected_keywords": ["$14", "tip", "not worth", "expensive", "broke"], "business_id": "sandys-sandies"}
+{"query": "What do people say about the atmosphere or ambiance?", "expected_keywords": ["atmosphere", "music", "live", "ambiance", "vibe", "cozy"], "business_id": "sandys-sandies"}
+{"query": "Tell me about a specific positive experience a customer had.", "expected_keywords": ["love", "amazing", "great", "best", "favorite", "excellent"], "business_id": "sandys-sandies"}
+{"query": "What items on the menu are mentioned most often?", "expected_keywords": ["duck", "sandwich", "Ruben", "food", "menu"], "business_id": "sandys-sandies"}
+{"query": "Are customers likely to return or recommend this place?", "expected_keywords": ["revisit", "again", "ritual", "invited", "back", "return"], "business_id": "sandys-sandies"}
+{"query": "What do 5-star reviews say?", "expected_keywords": ["amazing", "love", "great", "excellent", "best", "favorite"], "business_id": "sandys-sandies"}
+{"query": "What do 1 or 2 star reviews complain about?", "expected_keywords": ["dry", "unfriendly", "overrated", "cold", "wrong"], "business_id": "sandys-sandies"}
+{"query": "What do customers say about delivery or takeout?", "expected_keywords": ["deliver", "delivery", "takeout", "location", "order"], "business_id": "sandys-sandies"}
+{"query": "Are there any reviews mentioning music or entertainment?", "expected_keywords": ["music", "live", "entertainment", "band"], "business_id": "sandys-sandies"}
+{"query": "What improvements do customers suggest?", "expected_keywords": ["prices", "portions", "quantities", "address", "directions"], "business_id": "sandys-sandies"}
+{"query": "How do customers describe the bread or baked goods?", "expected_keywords": ["bread", "baked", "fresh", "bakery"], "business_id": "sandys-sandies"}
+{"query": "What do customers say about the overall experience compared to other restaurants?", "expected_keywords": ["Jersey Mike", "compared", "hidden gem", "since the 60s", "best sandwiches"], "business_id": "sandys-sandies"}
+{"query": "Are there reviews from customers who come regularly?", "expected_keywords": ["ritual", "regular", "always", "every", "week", "Sunday"], "business_id": "sandys-sandies"}
+{"query": "What do customers say about the tea or drinks?", "expected_keywords": ["tea", "drink", "coffee", "beer", "beverage"], "business_id": "sandys-sandies"}
+{"query": "What is the most recent negative feedback?", "expected_keywords": ["dry", "unfriendly", "overrated", "cold", "$14"], "business_id": "sandys-sandies"}
+{"query": "Do any reviews mention Comic Sans or design issues?", "expected_keywords": ["Comic Sans", "menu", "font", "design"], "business_id": "sandys-sandies"}
+{"query": "Summarize the overall customer sentiment.", "expected_keywords": ["amazing", "love", "great", "food", "sandwiches", "delicious"], "business_id": "sandys-sandies"}

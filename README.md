@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gromopo-tech/chat/actions/workflows/ci.yml/badge.svg)](https://github.com/gromopo-tech/chat/actions/workflows/ci.yml)
 
-Multi-tenant, multi-source RAG service (FastAPI · Vertex AI · Qdrant) that unifies owner-uploaded Google review exports and on-chain Solana reviews behind a pluggable `ReviewSource` interface — with per-business `business_id` payload filtering for tenant isolation, an LLM-driven query parser that extracts structured metadata filters from natural-language questions, and a recall@k eval harness that scores 20/20 (100%) at avg 1.6s latency on 20 ground-truth queries. Part of the [Gromopo](https://github.com/gromopo-tech/gromopo) system.
+Multi-tenant, multi-source RAG service (FastAPI · Vertex AI · Qdrant) that unifies owner-uploaded Google review exports and on-chain Solana reviews behind a pluggable `ReviewSource` interface — with per-business `business_id` payload filtering for tenant isolation, an LLM-driven query parser that extracts structured metadata filters from natural-language questions, and a recall@k eval harness that scores 20/20 (100%) at avg 1.6s latency on 20 ground-truth queries. See demo [here](https://github.com/gromopo-tech/gromopo) system.
 
 ---
 

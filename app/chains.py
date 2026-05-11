@@ -1,5 +1,6 @@
 import time
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -56,6 +57,17 @@ def _rewrite_question(user_query: str, chat_history: list[ChatMessage] | None) -
         return user_query
 
 
+_RECENCY_PHRASES = (
+    "most recent", "latest review", "newest review", "last review",
+    "most recent review", "recent review", "latest feedback", "newest feedback",
+)
+
+
+def _is_recency_query(query: str) -> bool:
+    q = query.lower()
+    return any(phrase in q for phrase in _RECENCY_PHRASES)
+
+
 def _get_k_value_for_query(user_query: str) -> int:
     """Determine optimal k value based on query type."""
     query_lower = user_query.lower()
@@ -97,10 +109,12 @@ def _prepare_query(user_query: str, business_id: str | None = None, business_nam
         parsed = {"off_topic": False, "query_embedding_text": user_query, "filter": {}}
     filter_dict = parsed.get("filter")
     qdrant_filter = build_qdrant_filter(filter_dict, business_id=business_id)
-    k_value = _get_k_value_for_query(user_query)
-    log.info("query_prepared", k=k_value, business_id=business_id, filter=filter_dict,
+    sort_by_recency = _is_recency_query(user_query)
+    k_value = 5 if sort_by_recency else _get_k_value_for_query(user_query)
+    log.info("query_prepared", k=k_value, sort_by_recency=sort_by_recency,
+             business_id=business_id, filter=filter_dict,
              parse_latency_ms=round((time.monotonic() - t0) * 1000, 1))
-    retriever = create_dense_retriever(qdrant_filter=qdrant_filter, k=k_value)
+    retriever = create_dense_retriever(qdrant_filter=qdrant_filter, k=k_value, sort_by_recency=sort_by_recency)
     embedding_text = parsed["query_embedding_text"]
     return filter_dict, embedding_text, retriever, parsed
 
@@ -134,6 +148,15 @@ async def _stream_llm_response(chain, inputs: dict) -> AsyncIterator[dict[str, A
         yield {"chunk": buffer}
 
 
+def _format_doc(doc) -> str:
+    """Prepend ISO date to review text so the LLM can reason about recency."""
+    ct = doc.metadata.get("createTime")
+    if ct:
+        date_str = datetime.fromtimestamp(ct, tz=timezone.utc).strftime("%Y-%m-%d")
+        return f"[{date_str}] {doc.page_content}"
+    return doc.page_content
+
+
 async def get_streaming_rag_response(
     user_query: str,
     business_id: str | None = None,
@@ -159,7 +182,7 @@ async def get_streaming_rag_response(
     t0 = time.monotonic()
     context_docs = await retriever.ainvoke(embedding_text)
     retrieval_ms = round((time.monotonic() - t0) * 1000, 1)
-    context = [doc.page_content for doc in context_docs]
+    context = [_format_doc(doc) for doc in context_docs]
     review_count = len(context)
     log.info("retrieval", k=review_count, business_id=business_id, latency_ms=retrieval_ms)
 

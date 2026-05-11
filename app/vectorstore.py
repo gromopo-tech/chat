@@ -7,7 +7,7 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from pydantic import ConfigDict
 from qdrant_client import QdrantClient, models
-from qdrant_client.models import Distance, SparseIndexParams, SparseVectorParams, VectorParams
+from qdrant_client.models import Direction, Distance, OrderBy, SparseIndexParams, SparseVectorParams, VectorParams
 
 from app.config import Config
 from app.utils import iso8601_to_timestamp
@@ -22,24 +22,30 @@ def get_qdrant():
 
 
 def ensure_collection(qdrant: QdrantClient) -> None:
-    """Create the Qdrant collection if it does not already exist.
+    """Create the Qdrant collection and required payload indexes if they don't exist.
 
-    Unlike embed_reviews.py (which deletes and recreates), this is safe
-    to call repeatedly — it is a no-op when the collection already exists.
+    Safe to call repeatedly — collection creation is skipped if it already exists,
+    and payload index creation is idempotent.
     """
-    if qdrant.collection_exists(collection_name=Config.COLLECTION_NAME):
-        return
-    qdrant.create_collection(
+    if not qdrant.collection_exists(collection_name=Config.COLLECTION_NAME):
+        qdrant.create_collection(
+            collection_name=Config.COLLECTION_NAME,
+            vectors_config={
+                "dense": VectorParams(size=Config.DENSE_VECTOR_SIZE, distance=Distance.COSINE),
+            },
+            sparse_vectors_config={
+                "sparse": SparseVectorParams(
+                    index=SparseIndexParams(on_disk=False)
+                )
+            },
+            optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
+        )
+    # Float index required for order_by on createTime (recency queries).
+    # Idempotent — safe to call on existing collections.
+    qdrant.create_payload_index(
         collection_name=Config.COLLECTION_NAME,
-        vectors_config={
-            "dense": VectorParams(size=Config.DENSE_VECTOR_SIZE, distance=Distance.COSINE),
-        },
-        sparse_vectors_config={
-            "sparse": SparseVectorParams(
-                index=SparseIndexParams(on_disk=False)
-            )
-        },
-        optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
+        field_name="createTime",
+        field_schema=models.PayloadSchemaType.FLOAT,
     )
 
 
@@ -101,47 +107,47 @@ def hybrid_search(query_text: str, qdrant_filter: models.Filter = None, k: int =
     # For now, only use dense search since sparse embeddings may not be available
     # with the current text-embedding-004 model
     try:
-        dense_results = qdrant.search(
+        response = qdrant.query_points(
             collection_name=Config.COLLECTION_NAME,
-            query_vector=models.NamedVector(name="dense", vector=dense_vector),
+            query=dense_vector,
+            using="dense",
             query_filter=qdrant_filter,
             limit=k,
             with_payload=True,
         )
-        
-        # Convert results to the expected format
-        combined_results = []
-        for result in dense_results:
-            combined_results.append({
-                "payload": result.payload, 
-                "score": result.score
-            })
-        
-        return combined_results
-        
+        return [{"payload": r.payload, "score": r.score} for r in response.points]
+
     except Exception as e:
-        # Fallback to default vector search if named vectors don't exist yet
         log.warning("named_vector_search_failed", error=str(e))
         try:
-            dense_results = qdrant.search(
+            response = qdrant.query_points(
                 collection_name=Config.COLLECTION_NAME,
-                query_vector=dense_vector,
+                query=dense_vector,
                 query_filter=qdrant_filter,
                 limit=k,
                 with_payload=True,
             )
-            
-            combined_results = []
-            for result in dense_results:
-                combined_results.append({
-                    "payload": result.payload, 
-                    "score": result.score
-                })
-            
-            return combined_results
+            return [{"payload": r.payload, "score": r.score} for r in response.points]
         except Exception as fallback_error:
             log.error("all_search_methods_failed", error=str(fallback_error))
             return []
+
+
+def recency_search(qdrant_filter: models.Filter | None = None, k: int = 5) -> list[dict[str, Any]]:
+    """Return the k most recent reviews sorted by createTime descending.
+
+    Uses scroll (no vector scoring) so the result is purely time-ordered,
+    not influenced by semantic similarity to the query.
+    """
+    qdrant = get_qdrant()
+    points, _ = qdrant.scroll(
+        collection_name=Config.COLLECTION_NAME,
+        scroll_filter=qdrant_filter,
+        limit=k,
+        order_by=OrderBy(key="createTime", direction=Direction.DESC),
+        with_payload=True,
+    )
+    return [{"payload": p.payload, "score": None} for p in points]
 
 
 class _DenseRetriever(BaseRetriever):
@@ -151,24 +157,35 @@ class _DenseRetriever(BaseRetriever):
 
     qdrant_filter: models.Filter | None = None
     k: int = 20
+    sort_by_recency: bool = False
 
     def _get_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
     ) -> list[Document]:
-        results = hybrid_search(query, self.qdrant_filter, self.k)
+        if self.sort_by_recency:
+            results = recency_search(self.qdrant_filter, self.k)
+        else:
+            results = hybrid_search(query, self.qdrant_filter, self.k)
         return [
             Document(page_content=r["payload"]["text"], metadata=r["payload"])
             for r in results
         ]
 
     async def _aget_relevant_documents(self, query: str, *, run_manager) -> list[Document]:
-        results = await asyncio.to_thread(hybrid_search, query, self.qdrant_filter, self.k)
+        if self.sort_by_recency:
+            results = await asyncio.to_thread(recency_search, self.qdrant_filter, self.k)
+        else:
+            results = await asyncio.to_thread(hybrid_search, query, self.qdrant_filter, self.k)
         return [
             Document(page_content=r["payload"]["text"], metadata=r["payload"])
             for r in results
         ]
 
 
-def create_dense_retriever(qdrant_filter: models.Filter | None = None, k: int = 20) -> _DenseRetriever:
+def create_dense_retriever(
+    qdrant_filter: models.Filter | None = None,
+    k: int = 20,
+    sort_by_recency: bool = False,
+) -> _DenseRetriever:
     """Return a LangChain retriever using dense Qdrant search."""
-    return _DenseRetriever(qdrant_filter=qdrant_filter, k=k)
+    return _DenseRetriever(qdrant_filter=qdrant_filter, k=k, sort_by_recency=sort_by_recency)

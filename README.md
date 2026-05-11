@@ -123,9 +123,9 @@ Expected output:
 or ingest reviews from solana devnet (must have seeded devnet reviews first, see: [gromopo-tech/vouched](https://github.com/gromopo-tech/vouched)):
 ```sh
 
-python3 ingest/run_ingest.py \
+python3 -m ingest.run_ingest \
   --source onchain_solana \
-  --business-id demo123 \
+  --business-id sandys-sandies \
   --reviewee <merchant_wallet_from_seed_output>
 ```
 

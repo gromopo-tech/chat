@@ -1,6 +1,6 @@
 import time
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -152,7 +152,7 @@ def _format_doc(doc) -> str:
     """Prepend ISO date to review text so the LLM can reason about recency."""
     ct = doc.metadata.get("createTime")
     if ct:
-        date_str = datetime.fromtimestamp(ct, tz=timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.fromtimestamp(ct, tz=UTC).strftime("%Y-%m-%d")
         return f"[{date_str}] {doc.page_content}"
     return doc.page_content
 

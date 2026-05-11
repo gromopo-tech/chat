@@ -7,7 +7,14 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from pydantic import ConfigDict
 from qdrant_client import QdrantClient, models
-from qdrant_client.models import Direction, Distance, OrderBy, SparseIndexParams, SparseVectorParams, VectorParams
+from qdrant_client.models import (
+    Direction,
+    Distance,
+    OrderBy,
+    SparseIndexParams,
+    SparseVectorParams,
+    VectorParams,
+)
 
 from app.config import Config
 from app.utils import iso8601_to_timestamp

@@ -51,14 +51,15 @@ def _search(client: QdrantClient, query_vector: list[float],
             ]
         )
 
-    results = client.search(
+    results = client.query_points(
         collection_name=collection,
-        query_vector=models.NamedVector(name="dense", vector=query_vector),
+        query=query_vector,
+        using="dense",
         query_filter=qdrant_filter,
         limit=10,
         with_payload=True,
     )
-    return [r.payload for r in results]
+    return [r.payload for r in results.points]
 
 
 # ---------------------------------------------------------------------------

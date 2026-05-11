@@ -1,9 +1,9 @@
 base58==2.1.1
 fastapi==0.115.14
-langchain==0.3.26
-langchain-google-vertexai==2.0.27
-langchain-qdrant==0.2.0
-qdrant-client==1.14.3
+langchain==1.2.18
+langchain-google-vertexai==3.2.3
+langchain-qdrant==1.1.0
+qdrant-client==1.17.1
 python-dotenv==1.1.0
 solana==0.36.11
 solders==0.27.1

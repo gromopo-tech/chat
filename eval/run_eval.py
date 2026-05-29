@@ -34,25 +34,26 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
-# Allow running from repo root without installing the package
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Load .env before any app.* imports so Config reads VERTEX_PROJECT correctly.
-# Same guard as run_ingest.py: don't let .env overwrite a real QDRANT_HOST that
-# points at Docker's internal hostname when running scripts locally.
-import os
 from dotenv import load_dotenv
+
+# Allow running from repo root without installing the package.
+# sys.path and .env must be configured before any app.* imports so that
+# Config reads VERTEX_PROJECT correctly and doesn't fall back to the gcloud
+# default project. Noqa suppresses E402 on the app imports below, which
+# intentionally come after this setup block.
+sys.path.insert(0, str(Path(__file__).parent.parent))
 _qdrant_host_pre = os.environ.get("QDRANT_HOST")
 load_dotenv(Path(__file__).parent.parent / ".env")
 if _qdrant_host_pre is None:
     os.environ.pop("QDRANT_HOST", None)
 
-from app.query_parser import parse_query_with_llm
-from app.vectorstore import build_qdrant_filter, create_dense_retriever, get_qdrant
+from app.query_parser import parse_query_with_llm  # noqa: E402
+from app.vectorstore import build_qdrant_filter, create_dense_retriever, get_qdrant  # noqa: E402
 
 QUERIES_FILE = Path(__file__).parent / "queries.jsonl"
 DEFAULT_K_VALUES = [5, 10, 25, 50, 100, 250, 500]
@@ -72,7 +73,7 @@ def build_corpus(business_id: str) -> list[dict]:
     corpus: list[dict] = []
     offset = None
 
-    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
     tenant_filter = Filter(must=[
         FieldCondition(key="business_id", match=MatchValue(value=business_id))
     ])

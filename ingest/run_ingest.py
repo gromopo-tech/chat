@@ -13,11 +13,18 @@ Usage:
         --business-id <business_id>          # fetches from devnet RPC
 
 Examples:
-    # Ingest the bundled sample reviews
+    # Ingest a single file
     python scripts/run_ingestion.py \\
         --source google_takeout \\
         --business-id demo \\
         --input reviews/reviews-sample.json
+
+    # Ingest all JSONs in a directory (e.g. a Google Takeout export folder)
+    # Files that don't contain a "reviews" key are automatically skipped.
+    python scripts/run_ingestion.py \\
+        --source google_takeout \\
+        --business-id demo \\
+        --input path/to/takeout-folder/
 
     # Ingest on-chain reviews (Phase C — requires anchorpy + funded RPC)
     python scripts/run_ingestion.py \\
@@ -92,13 +99,31 @@ def main() -> None:
             print("--input is required for --source google_takeout", file=sys.stderr)
             sys.exit(1)
 
+        from pathlib import Path
+
         from app.ingestion.google_takeout import GoogleTakeoutSource
         from app.ingestion.pipeline import embed_and_upsert
 
-        log.info("ingestion_start", source="google_takeout", business_id=args.business_id,
-                 input=args.input_path)
         source = GoogleTakeoutSource()
-        records = source.load(args.business_id, input_path=args.input_path)
+        input_path = Path(args.input_path)
+
+        if input_path.is_dir():
+            json_files = sorted(input_path.rglob("*.json"))
+            log.info("ingestion_start", source="google_takeout", business_id=args.business_id,
+                     input=str(input_path), json_files_found=len(json_files))
+            records = []
+            for json_file in json_files:
+                file_records = source.load(args.business_id, input_path=json_file)
+                if file_records:
+                    log.info("file_parsed", file=json_file.name, records=len(file_records))
+                    records.extend(file_records)
+                else:
+                    log.info("file_skipped", file=json_file.name, reason="no reviews found")
+        else:
+            log.info("ingestion_start", source="google_takeout", business_id=args.business_id,
+                     input=args.input_path)
+            records = source.load(args.business_id, input_path=input_path)
+
         result = embed_and_upsert(records)
 
     elif args.source == "onchain_solana":

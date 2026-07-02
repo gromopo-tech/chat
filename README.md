@@ -228,63 +228,18 @@ The codebase is structured for hybrid dense+sparse retrieval (Qdrant named vecto
 | [gromopo-tech/gromopo](https://github.com/gromopo-tech/gromopo) | Next.js ordering platform — owner dashboard, on-chain USDC payments, review upload UI |
 | [gromopo-tech/vouched](https://github.com/gromopo-tech/vouched) | Solana Anchor program — purchase-verified on-chain review storage, PDAs, devnet deployment |
 
-## 🐳 Using Docker Compose for App and Qdrant
+## Troubleshooting
 
-You can run both Qdrant and the FastAPI app with Docker Compose:
+**Qdrant connection errors** — Confirm Qdrant is running (`docker-compose ps`). Check the app is using the right host/port: `QDRANT_HOST=qdrant` inside Docker, `localhost` for local scripts (see step 3).
 
-```sh
-docker-compose up -d
-```
+**Vertex AI authentication errors** — Locally, ensure ADC is set up (`gcloud auth application-default login`). On Cloud Run, use the default service account or Workload Identity.
 
-- The app will be available at [http://localhost:8080](http://localhost:8080)
-- Qdrant will be at [http://localhost:6333](http://localhost:6333)
+**No context returned** — Make sure ingestion ran *after* Qdrant started, and that you're querying the same `business_id` you ingested under.
 
-You can check the status of the containers with:
-
-```sh
-docker-compose ps
-```
-
-and you can check the logs of both containers with:
-
-```sh
-docker-compose logs -f
-```
----
-
-## 🛠️ Troubleshooting
-
-- **Qdrant connection errors:**
-  - Make sure Qdrant is running (`docker-compose up -d qdrant`).
-  - Check that your app is using the correct host/port or URL/API key.
-- **Vertex AI authentication errors:**
-  - Ensure `GOOGLE_APPLICATION_CREDENTIALS` is set and points to your ADC file (locally).
-  - On Cloud Run, use the default service account or set up Workload Identity.
-- **No context returned:**
-  - Make sure you ran the embedding script after Qdrant was started.
+**Inspecting containers** — `docker-compose logs -f` tails both services; `docker-compose ps` shows status.
 
 ---
 
-## 🧹 Cleaning Up
+## License
 
-To stop and remove all containers:
-```sh
-docker-compose down
-```
-To remove all data (including Qdrant data):
-```sh
-docker-compose down -v
-```
-
----
-
-## 📦 Production
-
-- Use Qdrant Cloud by setting `QDRANT_URL` and `QDRANT_API_KEY`.
-- Run the embedding script from a cloud VM for large datasets for better speed and reliability.
-- On Cloud Run, `GOOGLE_CLOUD_PROJECT` is set automatically; set `VERTEX_LOCATION` as an env var.
-
----
-
-## 📄 License
 MIT
